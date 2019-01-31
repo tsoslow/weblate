@@ -15,6 +15,7 @@ weblate-*.tar.*
 /tags
 .idea/*
 *.sublime-*
+.vscode/*
 /Weblate.egg-info/
 /build/
 /data/
@@ -24,3 +25,6 @@ weblate-*.tar.*
 /.tesseract/
 /test-images/
 /cc-test-reporter
+# Celery logs/pids
+/weblate-*.log
+/weblate-*.pid

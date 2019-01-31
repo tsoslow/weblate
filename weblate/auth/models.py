@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -41,9 +41,11 @@ import six
 
 from weblate.auth.data import (
     ACL_GROUPS, SELECTION_MANUAL, SELECTION_ALL, SELECTION_COMPONENT_LIST,
-    SELECTION_ALL_PUBLIC, SELECTION_ALL_PROTECTED,
+    SELECTION_ALL_PUBLIC, SELECTION_ALL_PROTECTED, GLOBAL_PERM_NAMES,
 )
-from weblate.auth.permissions import SPECIALS, check_permission
+from weblate.auth.permissions import (
+    SPECIALS, check_permission, check_global_permission
+)
 from weblate.auth.utils import (
     migrate_permissions, migrate_roles, create_anonymous, migrate_groups,
 )
@@ -312,6 +314,7 @@ class User(AbstractBaseUser):
     email = models.EmailField(
         _('Email'),
         blank=False,
+        null=True,
         max_length=190,
         unique=True,
         validators=[validate_email],
@@ -399,6 +402,8 @@ class User(AbstractBaseUser):
             self.full_name = self.extra_data['first_name']
         elif 'last_name' in self.extra_data:
             self.full_name = self.extra_data['last_name']
+        if not self.email:
+            self.email = None
         super(User, self).save(*args, **kwargs)
 
     def has_module_perms(self, module):
@@ -410,13 +415,31 @@ class User(AbstractBaseUser):
         """Compatibility API for admin interface."""
         return self.is_superuser
 
+    @property
+    def first_name(self):
+        """Compatibility API for third party modules."""
+        return ''
+
+    @property
+    def last_name(self):
+        """Compatibility API for third party modules."""
+        return self.full_name
+
     # pylint: disable=keyword-arg-before-vararg
     def has_perm(self, perm, obj=None, *args):
         """Permission check"""
+        # Weblate global scope permissions
+        if perm in GLOBAL_PERM_NAMES:
+            return check_global_permission(self, perm, obj)
+
         # Compatibility API for admin interface
         if obj is None:
-            # Superuser has all permissions
-            return self.is_superuser
+            if not self.is_superuser:
+                return False
+
+            # Check permissions restrictions
+            allowed = settings.AUTH_RESTRICT_ADMINS.get(self.username)
+            return allowed is None or perm in allowed
 
         # Validate perms, this is expensive to perform, so this only in test by
         # default
@@ -463,17 +486,21 @@ class User(AbstractBaseUser):
         )
         return Project.objects.filter(group__in=groups).distinct()
 
-    def get_author_name(self, email=True):
-        """Return formatted author name with email."""
-        # The < > are replace to avoid tricking Git to use
-        # name as email
-
+    def get_visible_name(self):
         # Get full name from database
         full_name = self.full_name.replace('<', '').replace('>', '')
 
         # Use username if full name is empty
         if full_name == '':
             full_name = self.username.replace('<', '').replace('>', '')
+        return full_name
+
+    def get_author_name(self, email=True):
+        """Return formatted author name with email."""
+        # The < > are replace to avoid tricking Git to use
+        # name as email
+
+        full_name = self.get_visible_name()
 
         # Add email if we are asked for it
         if not email:
@@ -511,7 +538,7 @@ def create_groups(update):
 
     # Create permissions and roles
     migrate_permissions(Permission)
-    migrate_roles(Role, Permission)
+    new_roles = migrate_roles(Role, Permission)
     migrate_groups(Group, Role, update)
 
     # Create anonymous user
@@ -524,6 +551,11 @@ def create_groups(update):
     group = Group.objects.get(name='Viewers')
     if not AutoGroup.objects.filter(group=group).exists():
         AutoGroup.objects.create(group=group, match='^.*$')
+
+    # Create new per project groups
+    if new_roles:
+        for project in Project.objects.iterator():
+            project.save()
 
 
 @receiver(post_migrate)
@@ -542,7 +574,7 @@ def auto_assign_group(user):
         return
     # Add user to automatic groups
     for auto in AutoGroup.objects.all():
-        if re.match(auto.match, user.email):
+        if re.match(auto.match, user.email or ''):
             user.groups.add(auto.group)
 
 
@@ -636,17 +668,20 @@ def setup_project_groups(sender, instance, **kwargs):
                 group.save()
         except Group.DoesNotExist:
             # Create new group
-            group = Group.objects.create(
+            group, created = Group.objects.get_or_create(
                 internal=True,
                 name=name,
-                project_selection=SELECTION_MANUAL,
-                language_selection=SELECTION_ALL,
+                defaults={
+                    'project_selection': SELECTION_MANUAL,
+                    'language_selection': SELECTION_ALL,
+                }
             )
-            group.projects.add(instance)
-            group.roles.set(
-                Role.objects.filter(name=ACL_GROUPS[group_name]),
-                clear=True
-            )
+            if created:
+                group.projects.add(instance)
+                group.roles.set(
+                    Role.objects.filter(name=ACL_GROUPS[group_name]),
+                    clear=True
+                )
         handled.add(group.pk)
 
     # Remove stale groups
@@ -669,6 +704,7 @@ def cleanup_group_acl(sender, instance, **kwargs):
 class WeblateAuthConf(AppConf):
     """Authentication settings."""
     AUTH_VALIDATE_PERMS = False
+    AUTH_RESTRICT_ADMINS = {}
 
     class Meta(object):
         prefix = ''

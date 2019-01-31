@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -27,8 +27,9 @@ from weblate.lang.models import Language
 from weblate.trans.forms import SiteSearchForm
 from weblate.trans.models import Change
 from weblate.trans.util import sort_objects
-from weblate.trans.views.helper import get_project
+from weblate.utils.views import get_project
 from weblate.utils.stats import prefetch_stats
+from weblate.utils.views import get_paginator
 
 
 def show_languages(request):
@@ -99,11 +100,14 @@ def show_project(request, lang, project):
         translation__language=obj,
         component__project=pobj
     )[:10]
-    translations = obj.translation_set.prefetch().filter(
+
+    # Paginate translations.
+    translation_list = obj.translation_set.prefetch().filter(
         component__project=pobj
     ).order_by(
         'component__project__slug', 'component__slug'
     )
+    translations = get_paginator(request, translation_list)
 
     return render(
         request,

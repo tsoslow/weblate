@@ -7,8 +7,8 @@ Weblate supports most translation format understood by the translate-toolkit,
 however each format being slightly different, there might be some issues with
 formats that are not well tested.
 
-.. seealso:: 
-   
+.. seealso::
+
     :doc:`tt:formats/index`
 
 .. note::
@@ -21,7 +21,7 @@ formats that are not well tested.
 
 .. _bimono:
 
-Bilingual and monolignual formats
+Bilingual and monolingual formats
 ---------------------------------
 
 Weblate does support both :index:`monolingual <pair: translation; monolingual>`
@@ -43,6 +43,60 @@ Automatic detection
 Weblate can automatically detect several widely spread file formats, but this
 detection can harm your performance and will limit features specific to given
 file format (for example automatic adding of new translations).
+
+.. _fmt_capabs:
+
+Translation types capabilities
+------------------------------
+
+Below are listed capabilities of all supported formats.
+
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| Format              | Linguality [#m]_ | Plurals [#p]_ | Comments [#n]_ | Context [#c]_ | Location [#l]_ | Additional states [#a]_ |
++=====================+==================+===============+================+===============+================+=========================+
+| :ref:`gettext`      | bilingual        | yes           | yes            | yes           | yes            | needs editing           |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`mono_gettext` | mono             | yes           | yes            | yes           | yes            | needs editing           |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`xliff`        | both             | yes           | yes            | yes           | yes            | needs editing, approved |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`javaprop`     | both             | no            | yes            | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`joomla`       | mono             | no            | yes            | no            | yes            |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`qtling`       | both             | yes           | yes            | no            | yes            | needs editing           |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`aresource`    | mono             | yes           | yes            | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`apple`        | bilingual        | no            | yes            | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`php`          | mono             | no            | yes            | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`json`         | mono             | no            | no             | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`js-i18next`   | mono             | yes           | no             | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`webex`        | mono             | yes           | yes            | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`dotnet`       | mono             | no            | yes            | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`csv`          | mono             | no            | yes            | yes           | yes            | needs editing           |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`yaml`         | mono             | no            | yes            | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`dtd`          | mono             | no            | no             | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`winrc`        | mono             | no            | yes            | no            | no             |                         |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+| :ref:`xlsx`         | mono             | no            | yes            | yes           | yes            | needs editing           |
++---------------------+------------------+---------------+----------------+---------------+----------------+-------------------------+
+
+.. [#m] See :ref:`bimono`
+.. [#p] Plurals are necessary to properly localize strings with variable count.
+.. [#n] Comments can be used to pass additional information about string to translate.
+.. [#c] Context is used to differentiate same strings used in different scope (eg. `Sun` can be used as abbreviated name of day or as a name of our closest star).
+.. [#l] Location of string in source code might help skilled translators to figure out how the string is used.
+.. [#a] Additional states supported by the file format in addition to not translated and translated.
 
 .. _gettext:
 
@@ -97,6 +151,8 @@ The bilingual gettext PO file typically looks like:
     :ref:`addon-weblate.gettext.linguas`,
     :ref:`addon-weblate.gettext.mo`,
     :ref:`addon-weblate.gettext.msgmerge`,
+
+.. _mono_gettext:
 
 Monolingual Gettext
 +++++++++++++++++++
@@ -163,17 +219,23 @@ is one of many standards in this area.
 
 XLIFF is usually used as bilingual, but Weblate supports it as monolingual as well.
 
-Translations marked for review
-++++++++++++++++++++++++++++++
+Translations states
++++++++++++++++++++
 
-.. versionchanged:: 2.18
+The ``state`` attribute in the file is partially processed and mapped to needs
+edit state in Weblate (the following states are used to flag the string as
+needing edit if there is some target present: ``new``, ``needs-translation``,
+``needs-adaptation``, ``needs-l10n``). Should the ``state`` attribute be
+missing a string is considered translated as soon as a ``<target>`` element
+exists.
 
-    Since version 2.18 Weblate differentiates approved and fuzzy states, so
-    it should work as expected with Xliff. You still might apply note below in
-    cases where you don't want to use review process in Weblate.
+Also if the translation string has ``approved="yes"`` it will be imported into Weblate
+as approved, anything else will be imported as waiting for review (which matches XLIFF
+specification).
 
-If the translation unit doesn't have ``approved="yes"`` it will be imported into
-Weblate as needing review (which matches XLIFF specification).
+That means that when using XLIFF format, it is strongly recommended to enable Weblate
+review process, in order to see and change the approved state of strings.
+See :ref:`reviews`.
 
 Similarly on importing such files, you should choose
 :guilabel:`Import as translated` under
@@ -184,7 +246,7 @@ Whitespace and newlines in XLIFF
 
 Generally the XML formats do not differentiate between types or amounts of whitespace.
 If you want to keep it, you have to add the ``xml:space="preserve"`` flag to
-the unit.
+the string.
 
 For example:
 
@@ -197,11 +259,23 @@ For example:
         </trans-unit>
 
 +-------------------------------------------------------------------+
-| Typical Weblate :ref:`component`                                  |
+| Typical Weblate :ref:`component` for bilingual XLIFF              |
 +================================+==================================+
 | File mask                      | ``localizations/*.xliff``        |
 +--------------------------------+----------------------------------+
 | Monolingual base language file | `Empty`                          |
++--------------------------------+----------------------------------+
+| Base file for new translations | ``localizations/en-US.xliff``    |
++--------------------------------+----------------------------------+
+| File format                    | `XLIFF Translation File`         |
++--------------------------------+----------------------------------+
+
++-------------------------------------------------------------------+
+| Typical Weblate :ref:`component` for monolingual XLIFF            |
++================================+==================================+
+| File mask                      | ``localizations/*.xliff``        |
++--------------------------------+----------------------------------+
+| Monolingual base language file | ``localizations/en-US.xliff``    |
 +--------------------------------+----------------------------------+
 | Base file for new translations | ``localizations/en-US.xliff``    |
 +--------------------------------+----------------------------------+
@@ -213,6 +287,8 @@ For example:
     `XLIFF on Wikipedia <https://en.wikipedia.org/wiki/XLIFF>`_,
     :doc:`tt:formats/xliff`
 
+.. _javaprop:
+
 Java properties
 ---------------
 
@@ -223,7 +299,15 @@ Native Java format for translations.
 
 Java properties are usually used as monolingual.
 
-Weblate supports ISO-8859-1, UTF-8 and UTF-16 variants of this format.
+Weblate supports ISO-8859-1, UTF-8 and UTF-16 variants of this format. All of
+them supports storing all Unicode characters, it's just differently encoded. In
+the ISO-8859-1 the Unicode escape sequences are used (eg. ``zkou\u0161ka``),
+all others encode characters directly either in UTF-8 or UTF-16.
+
+.. note::
+
+   Loading of escape sequences will work in UTF-8 mode as well, so please be
+   careful choosing correct charset matching your application needs.
 
 +-------------------------------------------------------------------+
 | Typical Weblate :ref:`component`                                  |
@@ -243,6 +327,8 @@ Weblate supports ISO-8859-1, UTF-8 and UTF-16 variants of this format.
     :doc:`tt:formats/properties`,
     :ref:`addon-weblate.properties.sort`,
     :ref:`addon-weblate.cleanup.generic`,
+
+.. _joomla:
 
 Joomla translations
 -------------------
@@ -272,6 +358,8 @@ Joomla translations are usually used as monolingual.
 
     `Specification of Joomla language files <https://docs.joomla.org/Specification_of_language_files>`_,
     :doc:`tt:formats/properties`
+
+.. _qtling:
 
 Qt Linguist .ts
 ---------------
@@ -310,7 +398,7 @@ Qt Linguist files are used as both bilingual and monolingual.
 
 .. seealso::
 
-    `Qt Linguist manual <http://doc.qt.io/qt-5/qtlinguist-index.html>`_,
+    `Qt Linguist manual <https://doc.qt.io/qt-5/qtlinguist-index.html>`_,
     :doc:`tt:formats/ts`,
     :ref:`bimono`
 
@@ -343,7 +431,7 @@ location from the others :file:`res/values/strings.xml`.
 
 .. seealso::
 
-    `Android string resources documentation <https://developer.android.com/guide/topics/resources/string-resource.html>`_,
+    `Android string resources documentation <https://developer.android.com/guide/topics/resources/string-resource>`_,
     :doc:`tt:formats/android`
 
 .. note::
@@ -401,8 +489,10 @@ Apple OS X strings are usually used as bilingual.
 
 .. seealso::
 
-    `Apple Strings Files documentation <https://developer.apple.com/library/mac/#documentation/MacOSX/Conceptual/BPInternational/Articles/StringsFiles.html>`_,
+    `Apple Strings Files documentation <https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPInternational/MaintaingYourOwnStringsFiles/MaintaingYourOwnStringsFiles.html>`_,
     :doc:`tt:formats/strings`
+
+.. _php:
 
 PHP strings
 -----------
@@ -440,7 +530,7 @@ Example file:
 
     Following things are known to be broken:
 
-    * Adding new units to translation, every translation has to contain all strings (even if empty).
+    * Adding new strings to translation, every translation has to contain all strings (even if empty).
     * Handling of special chars like newlines.
 
 
@@ -463,11 +553,6 @@ JSON files
     Since Weblate 2.16 and with translate-toolkit at least 2.2.4 nested
     structure JSON files are supported as well.
 
-.. versionchanged:: 2.17
-
-    Since Weblate 2.17 and with translate-toolkit at least 2.2.5 i18next
-    JSON files with plurals are supported as well.
-
 JSON format is used mostly for translating applications implemented in
 Javascript.
 
@@ -475,7 +560,8 @@ Weblate currently supports several variants of JSON translations:
 
 * Simple key / value files.
 * Files with nested keys.
-* The i18next files with support for plurals.
+* :ref:`js-i18next`
+* :ref:`webex`
 
 JSON translations are usually monolingual, so it is recommended to specify base
 file with English strings.
@@ -507,9 +593,55 @@ Nested files are supported as well (see above for requirements), such file can l
 .. seealso::
 
     :doc:`tt:formats/json`,
+    :ref:`addon-weblate.json.customize`,
+    :ref:`addon-weblate.cleanup.generic`,
+
+.. _js-i18next:
+
+JSON i18next files
+------------------
+
+.. index::
+    pair: i18next; file format
+
+.. versionchanged:: 2.17
+
+    Since Weblate 2.17 and with translate-toolkit at least 2.2.5 i18next
+    JSON files with plurals are supported as well.
+
+`i18next <https://www.i18next.com/>`_ is an internationalization-framework
+written in and for JavaScript. Weblate supports it's localization files with
+features such as plurals.
+
+i18next translations are monolingual, so it is recommended to specify base file
+with English strings.
+
+Example file:
+
+.. literalinclude:: ../weblate/trans/tests/data/en.i18next.json
+    :language: json
+    :encoding: utf-8
+
++-------------------------------------------------------------------+
+| Typical Weblate :ref:`component`                                  |
++================================+==================================+
+| File mask                      | ``langs/*.json``                 |
++--------------------------------+----------------------------------+
+| Monolingual base language file | ``langs/en.json``                |
++--------------------------------+----------------------------------+
+| Base file for new translations | `Empty`                          |
++--------------------------------+----------------------------------+
+| File format                    | `i18next JSON file`              |
++--------------------------------+----------------------------------+
+
+.. seealso::
+
+    :doc:`tt:formats/json`,
     `i18next JSON Format <https://www.i18next.com/misc/json-format>`_,
     :ref:`addon-weblate.json.customize`,
     :ref:`addon-weblate.cleanup.generic`,
+
+.. _webex:
 
 WebExtension JSON
 -----------------
@@ -544,6 +676,8 @@ Example file:
     `Google chrome.i18n <https://developer.chrome.com/extensions/i18n>`_,
     `Mozilla Extensions Internationalization <https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Internationalization>`_
 
+.. _dotnet:
+
 .Net Resource files
 -------------------
 
@@ -554,7 +688,8 @@ Example file:
 .. versionadded:: 2.3
 
 .Net Resource (.resx) file is a monolingual XML file format used in Microsoft
-.Net Applications.
+.Net Applications. It works with .resw files as well as they use identical
+syntax to .resx.
 
 +-------------------------------------------------------------------+
 | Typical Weblate :ref:`component`                                  |
@@ -572,6 +707,8 @@ Example file:
 
     :doc:`tt:formats/resx`,
     :ref:`addon-weblate.cleanup.generic`,
+
+.. _csv:
 
 CSV files
 ---------
@@ -654,6 +791,8 @@ Example Ruby i18n YAML file:
 
 .. seealso:: :doc:`tt:formats/yaml`
 
+.. _dtd:
+
 DTD files
 ---------
 
@@ -681,6 +820,8 @@ Example DTD file:
 +--------------------------------+----------------------------------+
 
 .. seealso:: :doc:`tt:formats/dtd`
+
+.. _winrc:
 
 Windows RC files
 ----------------
@@ -725,7 +866,7 @@ When using xlsx files for translation upload, be aware that only the active
 worksheet is considered and there must be at least a column called ``source``
 (which contains the source string) and a column called ``target`` (which
 contains the translation). Additionally there should be the column ``context``
-(which contains the context path of the translation unit). If you use the xlsx
+(which contains the context path of the translation string). If you use the xlsx
 download for exporting the translations into an Excel workbook, you already get
 a file with the correct file format.
 
@@ -738,8 +879,8 @@ easily supported, but they did not (yet) receive any testing. In most cases
 some thin layer is needed in Weblate to hide differences in behavior of
 different translate-toolkit storages.
 
-.. seealso:: 
-   
+.. seealso::
+
     :doc:`tt:formats/index`
 
 .. _new-translations:
@@ -758,7 +899,7 @@ formats.
 Some formats expect to start with empty file and only translated
 strings to be included (eg. :ref:`aresource`), while others expect to have all
 keys present (eg. :ref:`gettext`). In some situations this really doesn't depend
-on the format, but rather on framework you use to handle the translation (eg. with 
+on the format, but rather on framework you use to handle the translation (eg. with
 :ref:`json`).
 
 When you specify :guilabel:`Base file for new translations` in
@@ -766,5 +907,5 @@ When you specify :guilabel:`Base file for new translations` in
 exiting translations will be removed from the file when doing so.
 
 When :guilabel:`Base file for new translations` is empty and file format
-supports it, empty file is created where new units will be added once they are
+supports it, empty file is created where new strings will be added once they are
 translated.

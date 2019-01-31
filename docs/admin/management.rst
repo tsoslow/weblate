@@ -45,17 +45,17 @@ using :command:`docker exec`:
     docker exec <container> weblate list_versions
 
 With :program:`docker-compose` this is quite similar, you just have to use
-:command:`docker-compose run`:
+:command:`docker-compose exec`:
 
 .. code-block:: sh
 
-    docker-compose run --rm weblate list_versions
+    docker-compose exec weblate weblate list_versions
 
 In case you need to pass some file, you can temporary add a volume:
 
 .. code-block:: sh
 
-    docker-compose run --rm --volume /tmp:/tmp weblate importusers /tmp/users.json
+    docker-compose exec /tmp:/tmp weblate weblate importusers /tmp/users.json
 
 .. seealso::
 
@@ -66,7 +66,7 @@ In case you need to pass some file, you can temporary add a volume:
 add_suggestions
 ---------------
 
-.. django-admin:: add_suggesstions <project> <component> <language> <file>
+.. django-admin:: add_suggestions <project> <component> <language> <file>
 
 .. versionadded:: 2.5
 
@@ -118,14 +118,22 @@ Performs automatic translation based on other component translations.
 
     Automatically add language if given translation does not exist.
 
+.. django-admin-option:: --mt MT
+
+    Use machine translation instead of other components.
+
+.. django-admin-option:: --threshold THRESHOLD
+
+    Similarity threshold for machine translation, defaults to 80.
+
 Example:
 
 .. code-block:: sh
 
     ./manage.py --user nijel --inconsistent --source phpmyadmin/master phpmyadmin 4-5 cs
 
-.. seealso:: 
-   
+.. seealso::
+
    :ref:`auto-translation`
 
 changesite
@@ -146,8 +154,8 @@ admin interface.
 
     Prints currently configured site name.
 
-.. seealso:: 
-   
+.. seealso::
+
    :ref:`production-site`
 
 checkgit
@@ -185,11 +193,11 @@ You can either define which project or component to update (eg.
     Age in hours for committing. If not specified value configured in
     :ref:`component` is used.
 
-This is most useful if executed periodically from cron or similar tool:
+.. note::
 
-.. code-block:: sh
-
-    ./manage.py commit_pending --all
+   This is automatically perfomed in the background by Weblate, so there is not
+   much reason to invoke this manually besides forcing earlier commit than
+   specified by :ref:`component`.
 
 .. seealso::
 
@@ -211,10 +219,12 @@ cleanuptrans
 
 .. django-admin:: cleanuptrans
 
-Cleanups orphaned checks and translation suggestions.
+Cleanups orphaned checks and translation suggestions. This is normally not
+needed to execute manually, the cleanups happen automatically in the
+background.
 
 .. seealso::
-   
+
    :ref:`production-cron`
 
 createadmin
@@ -225,27 +235,27 @@ createadmin
 Creates ``admin`` account with random password unless it is specified.
 
 .. django-admin-option:: --password PASSWORD
-   
+
     Provide password on the command line and skip generating random one.
 
 .. django-admin-option:: --no-password
-   
+
     Do not set password, this can be useful with --update.
-    
+
 .. django-admin-option:: --username USERNAME
-   
+
     Use given name instead of ``admin``.
 
 .. django-admin-option:: --email USER@EXAMPLE.COM
-   
+
     Specify admin email.
-    
+
 .. django-admin-option:: --name
 
     Specify admin name (visible).
 
 .. django-admin-option:: --update
-   
+
     Update existing user (you can use this to change password).
 
 .. versionchanged:: 2.9
@@ -262,11 +272,11 @@ delete_memory
 Deletes entries in the Weblate Translation Memory.
 
 .. django-admin-option:: --origin ORIGIN
-   
+
     Origin to delete, for imported files the origin is filename without path.
 
 .. django-admin-option:: --all
-   
+
     Delete complete memory content and recreate the database.
 
 .. seealso::
@@ -337,7 +347,7 @@ Example of JSON file:
 
 .. seealso::
 
-    :djadmin:`import_project`
+    :djadmin:`import_memory`
 
 import_memory
 -------------
@@ -390,7 +400,7 @@ simple using wildcards or it can use full power of regular expressions.
 The simple matching uses ``**`` for component name and ``*`` for language, for
 example: ``**/*.po``
 
-The regullar expression has to contain named groups `component` and `language`.
+The regular expression has to contain named groups `component` and `language`.
 For example: ``(?P<language>[^/]*)/(?P<component>[^-/]*)\.po``
 
 The import matches existing components based on files and adds the ones which
@@ -408,6 +418,12 @@ do not exist. It does no changes to the already existing ones.
 
     For example: ``{{ component }}/res/values/string.xml``
 
+.. django-admin-option:: --new-base-template TEMPLATE
+
+    Customize base file for adding new translations.
+
+    For example: ``{{ component }}/ts/en.ts``
+
 .. django-admin-option:: --file-format FORMAT
 
     You can also specify file format to use (see :ref:`formats`), the default
@@ -419,7 +435,7 @@ do not exist. It does no changes to the already existing ones.
     parameter. It has to be valid regular expression.
 
 .. django-admin-option:: --main-component
-   
+
     You can specify which component will be chosen as main - the one actually
     containing VCS repository.
 
@@ -539,6 +555,12 @@ Installs addon to set of components.
 You can either define on which project or component to install addon (eg.
 ``weblate/master``) or use ``--all`` to include all existing components.
 
+For example installing :ref:`addon-weblate.gettext.customize` to all components:
+
+.. code-block:: shell
+
+   ./manage.py install_addon --addon weblate.gettext.customize --config '{"width": -1}' --update --all
+
 .. seealso::
 
    :ref:`addons`
@@ -559,7 +581,7 @@ list_languages
 Lists supported language in MediaWiki markup - language codes, English names
 and localized names.
 
-This is used to generate <http://wiki.l10n.cz/Jazyky>.
+This is used to generate <https://wiki.l10n.cz/Jazyky>.
 
 list_memory
 -----------
@@ -571,7 +593,7 @@ list_memory
 Lists contents of the Weblate Translation Memory.
 
 .. django-admin-option:: --type {origin}
-   
+
     Type of information to list, defaults to listing used origins.
 
 .. seealso::
@@ -615,11 +637,11 @@ repository).
 
 .. django-admin-option:: --force
 
-    Force update even if the files should be up to date. 
-    
+    Force update even if the files should be up to date.
+
 .. django-admin-option:: --lang LANGUAGE
 
-    Limit processing to single languaguage.
+    Limit processing to single language.
 
 You can either define which project or component to update (eg.
 ``weblate/master``) or use ``--all`` to update all existing components.
@@ -636,21 +658,41 @@ lock_translation
 .. django-admin:: lock_translation <project|project/component>
 
 Locks given component for translating. This is useful in case you want to do
-some maintenance on underlaying repository.
+some maintenance on underlying repository.
 
 You can either define which project or component to update (eg.
 ``weblate/master``) or use ``--all`` to update all existing components.
 
-.. seealso:: 
-   
+.. seealso::
+
    :djadmin:`unlock_translation`
+
+optimize_memory
+---------------
+
+.. django-admin:: optimize_memory
+
+.. versionadded:: 3.2
+
+Optimizes translation memory storage.
+
+.. django-admin-option:: --rebuild
+
+    The index will be completely rebuilt by dumping all content and creating it again.
+    It is recommended to backup it prior to this operation.
+
+.. seealso::
+
+    :ref:`translation-memory`,
+    :doc:`backup`,
+    :djadmin:`dump_memory`
 
 pushgit
 -------
 
 .. django-admin:: pushgit <project|project/component>
 
-Pushes committed changes to upstream VCS repository. 
+Pushes committed changes to upstream VCS repository.
 
 .. django-admin-option:: --force-commit
 
@@ -670,34 +712,21 @@ rebuild_index
 .. django-admin:: rebuild_index <project|project/component>
 
 Rebuilds index for fulltext search. This might be lengthy operation if you
-have a huge set of translation units.
+have a huge set of translation strings.
 
 .. django-admin-option:: --clean
 
-    Removes all words from database prior updating.
+    Removes all words from database prior updating, this is implicit when
+    called with ``--all``.
 
 .. django-admin-option:: --optimize
 
     The index will not be processed again, only its content will be optimized
     (removing stale entries and merging possibly split index files).
 
-.. seealso:: 
-   
+.. seealso::
+
    :ref:`fulltext`
-
-update_index
-------------
-
-.. django-admin:: update_index
-
-Updates index for fulltext search when :setting:`OFFLOAD_INDEXING` is enabled.
-
-It is recommended to run this frequently (eg. every 5 minutes) to have index
-uptodate.
-
-.. seealso:: 
-   
-   :ref:`fulltext`, :ref:`production-cron`, :ref:`production-indexing`
 
 unlock_translation
 ------------------
@@ -705,13 +734,13 @@ unlock_translation
 .. django-admin:: unlock_translation <project|project/component>
 
 Unlocks a given component for translating. This is useful in case you want to do
-some maintenance on the underlaying repository.
+some maintenance on the underlying repository.
 
 You can either define which project or component to update (eg.
 ``weblate/master``) or use ``--all`` to update all existing components.
 
-.. seealso:: 
-   
+.. seealso::
+
    :djadmin:`lock_translation`
 
 setupgroups
@@ -730,8 +759,8 @@ Configures default groups and optionally assigns all users to default group.
     Prevents updates of groups for existing projects. This allows to add newly
     added groups to existing projects, see :ref:`acl`.
 
-.. seealso:: 
-   
+.. seealso::
+
    :ref:`privileges`
 
 setuplang
@@ -743,7 +772,7 @@ Setups list of languages (it has own list and all defined in
 translate-toolkit).
 
 .. django-admin-option:: --no-update
-    
+
     Disables update of existing languages (only adds new ones).
 
 updatechecks
@@ -751,7 +780,7 @@ updatechecks
 
 .. django-admin:: updatechecks <project|project/component>
 
-Updates all check for all units. This could be useful only on upgrades
+Updates all check for all strings. This could be useful only on upgrades
 which do major changes to checks.
 
 You can either define which project or component to update (eg.

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -71,6 +71,10 @@ SPLIT_RE = re.compile(
     r'[() ,.^`"\'\\/_<>!?;:|{}*^@%#&~=+\r\n✓—‑…\[\]0-9-])+'
 )
 
+EMOJI_RE = re.compile(
+    u'[\U00002600-\U000027BF]|[\U0001f300-\U0001f64F]|[\U0001f680-\U0001f6FF]'
+)
+
 # Docbook tags to ignore
 DB_TAGS = (
     'screen',
@@ -107,6 +111,9 @@ def strip_string(msg, flags):
 
     # Strip format strings
     stripped = strip_format(stripped, flags)
+
+    # Remove emojis
+    stripped = EMOJI_RE.sub(' ', stripped)
 
     # Remove email addresses
     stripped = EMAIL_RE.sub('', stripped)
@@ -179,15 +186,14 @@ class SameCheck(TargetCheck):
             return True
 
         source_language = unit.translation.component.project.\
-            source_language.code.split('_')[0]
+            source_language.base_code
 
-        # Ignore the check for source language
-        if self.is_language(unit, source_language):
-            return True
-
+        # Ignore the check for source language,
         # English variants will have most things not translated
         # Interlingua is also quite often similar to English
-        elif source_language == 'en' and self.is_language(unit, ('en', 'ia')):
+        if (self.is_language(unit, source_language) or
+                (source_language == 'en' and
+                 self.is_language(unit, ('en', 'ia')))):
             return True
 
         return False

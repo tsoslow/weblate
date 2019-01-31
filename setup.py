@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -39,20 +39,25 @@ DATA_FILES = [
 
 setup(
     name='Weblate',
-    version='3.2',
+    version='3.5',
     packages=[
         'weblate',
     ],
     include_package_data=True,
     license='GPLv3+',
     description=(
-        'A web-based translation tool with tight version control integration'
+        'A web-based localization tool with tight version control integration'
     ),
     long_description=README,
     keywords='i18n l10n gettext git mercurial translate',
     url='https://weblate.org/',
     download_url='https://weblate.org/download/',
-    bugtrack_url='https://github.com/WeblateOrg/weblate/issues',
+    project_urls={
+        'Issue Tracker': 'https://github.com/WeblateOrg/weblate/issues',
+        'Documentation': 'https://docs.weblate.org/',
+        'Source Code': 'https://github.com/WeblateOrg/weblate',
+        'Twitter': 'https://twitter.com/WeblateOrg',
+    },
     author='Michal Čihař',
     author_email='michal@cihar.com',
     install_requires=REQUIRES,

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -201,7 +201,7 @@ LANGUAGES = (
         'zh_CN@test',
         'ltr',
         '0',
-        'Chinese (zh_CN@test)',
+        'Chinese (Simplified)',
         True,
     ),
     (
@@ -360,6 +360,16 @@ class LanguagesTest(with_metaclass(TestSequenceMeta, BaseTestCase)):
         # Check name
         self.assertEqual(force_text(lang), name)
 
+    def test_private_use(self, code='de-x-a123', expected='de-x-a123'):
+        lang = Language.objects.auto_get_or_create(code, create=False)
+        self.assertEqual(lang.code, expected)
+        Language.objects.create(name='Test', code=code)
+        lang = Language.objects.auto_get_or_create(code, create=False)
+        self.assertEqual(lang.code, code)
+
+    def test_private_country(self):
+        self.test_private_use('en-US-x-twain', 'en_US-x-twain')
+
 
 class CommandTest(TestCase):
     """Test for management commands."""
@@ -404,7 +414,10 @@ class VerifyPluralsTest(TestCase):
         """Validate that we can name all plural equations"""
         for code, dummy, dummy, pluraleq in self.all_data():
             self.assertNotEqual(
-                get_plural_type(code, pluraleq),
+                get_plural_type(
+                    code.replace('_', '-').split('-')[0],
+                    pluraleq
+                ),
                 data.PLURAL_UNKNOWN,
                 'Can not guess plural type for {0} ({1})'.format(
                     code, pluraleq

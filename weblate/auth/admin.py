@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -164,7 +164,7 @@ class WeblateGroupAdmin(WeblateModelAdmin):
         """Fix saving of automatic language/project selection, part 2
 
         Uses stored attribute to save the model again. Saving triggers the
-        automation and adjusts project/langauge selection according to
+        automation and adjusts project/language selection according to
         the chosen value.
         """
         super(WeblateGroupAdmin, self).save_related(

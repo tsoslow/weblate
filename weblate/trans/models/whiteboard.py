@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -41,13 +41,14 @@ class WhiteboardManager(models.Manager):
         if component:
             if language:
                 return base.filter(
-                    Q(language=language) |
-                    Q(component=component) |
+                    (Q(component=component) & Q(language=language)) |
+                    (Q(component=None) & Q(language=language)) |
+                    (Q(component=component) & Q(language=None)) |
                     (Q(project=component.project) & Q(component=None))
                 )
 
             return base.filter(
-                Q(component=component) |
+                (Q(component=component) & Q(language=None)) |
                 (Q(project=component.project) & Q(component=None))
             )
 

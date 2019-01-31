@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -36,13 +36,12 @@ from django.core.cache import cache
 
 from weblate.auth.models import Group, Role, Permission, setup_project_groups
 from weblate.lang.models import Language
-from weblate.trans.management.commands.update_index import (
-    Command as UpdateIndexCommand
-)
 from weblate.trans.models import ComponentList, WhiteboardMessage, Project
 from weblate.trans.search import Fulltext
 from weblate.trans.tests.test_models import RepoTestCase
-from weblate.trans.tests.utils import create_test_user
+from weblate.trans.tests.utils import (
+    create_test_user, wait_for_celery, create_another_user,
+)
 from weblate.utils.hash import hash_to_checksum
 from weblate.accounts.models import Profile
 
@@ -80,13 +79,20 @@ class RegistrationTestMixin(object):
 
 
 class ViewTestCase(RepoTestCase):
+    fake_search = True
+
     def setUp(self):
         super(ViewTestCase, self).setUp()
+        if self.fake_search:
+            Fulltext.FAKE = True
         # Many tests needs access to the request factory.
         self.factory = RequestFactory()
         # Create user
         self.user = create_test_user()
         group = Group.objects.get(name='Users')
+        self.user.groups.add(group)
+        # Create another user
+        self.anotheruser = create_another_user()
         self.user.groups.add(group)
         # Create project to have some test base
         self.component = self.create_component()
@@ -119,9 +125,13 @@ class ViewTestCase(RepoTestCase):
         self.project_url = self.project.get_absolute_url()
         self.component_url = self.component.get_absolute_url()
 
+    def tearDown(self):
+        super(ViewTestCase, self).tearDown()
+        if self.fake_search:
+            Fulltext.FAKE = False
+
     def update_fulltext_index(self):
-        command = UpdateIndexCommand()
-        command.do_update(Fulltext(), 100000)
+        wait_for_celery()
 
     def make_manager(self):
         """Make user a Manager."""
@@ -141,17 +151,17 @@ class ViewTestCase(RepoTestCase):
         setattr(request, '_messages', messages)
         return request
 
-    def get_translation(self):
+    def get_translation(self, language='cs'):
         return self.component.translation_set.get(
-            language_code='cs'
+            language_code=language
         )
 
-    def get_unit(self, source='Hello, world!\n'):
-        translation = self.get_translation()
+    def get_unit(self, source='Hello, world!\n', language='cs'):
+        translation = self.get_translation(language)
         return translation.unit_set.get(source__startswith=source)
 
-    def change_unit(self, target):
-        unit = self.get_unit()
+    def change_unit(self, target, source='Hello, world!\n', language='cs'):
+        unit = self.get_unit(source, language)
         unit.target = target
         unit.save_backend(self.get_request('/'))
 
@@ -217,10 +227,10 @@ class ViewTestCase(RepoTestCase):
         messages = set()
         translated = 0
 
-        for unit in store.all_units():
+        for unit in store.all_units:
             if not unit.is_translatable():
                 continue
-            id_hash = unit.get_id_hash()
+            id_hash = unit.id_hash
             self.assertFalse(
                 id_hash in messages,
                 'Duplicate string in in backend file!'
@@ -236,6 +246,9 @@ class ViewTestCase(RepoTestCase):
                 translated, expected_translated
             )
         )
+
+    def log_as_jane(self):
+        self.client.login(username='jane', password='anotherpassword')
 
 
 class FixtureTestCase(ViewTestCase):
@@ -339,7 +352,7 @@ class NewLangTest(ViewTestCase):
             reverse('component', kwargs=self.kw_component)
         )
         self.assertContains(response, 'Start new translation')
-        self.assertContains(response, 'permission to start new translation')
+        self.assertContains(response, 'permission to start a new translation')
 
         # Test adding fails
         response = self.client.post(
@@ -504,16 +517,6 @@ class NewLangTest(ViewTestCase):
             'Given language is filtered by the language filter!',
         )
 
-    def test_remove(self):
-        self.test_add_owner()
-        kwargs = {'lang': 'af'}
-        kwargs.update(self.kw_component)
-        response = self.client.post(
-            reverse('remove_translation', kwargs=kwargs),
-            follow=True
-        )
-        self.assertContains(response, 'Translation has been removed.')
-
 
 class AndroidNewLangTest(NewLangTest):
     def create_component(self):
@@ -602,7 +605,12 @@ class BasicLinkViewTest(BasicViewTest):
 
 
 class HomeViewTest(ViewTestCase):
-    """Test for home/inidex view."""
+    """Test for home/index view."""
+    def test_view_home_anonymous(self):
+        self.client.logout()
+        response = self.client.get(reverse('home'))
+        self.assertContains(response, 'Browse 1 project')
+
     def test_view_home(self):
         response = self.client.get(reverse('home'))
         self.assertContains(response, 'Test/Test')

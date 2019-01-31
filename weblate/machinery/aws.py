@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -47,7 +47,7 @@ class AWSTranslation(MachineTranslation):
             'ja', 'ru', 'it', 'zh-TW', 'tr', 'cs',
         )
 
-    def download_translations(self, source, language, text, unit, user):
+    def download_translations(self, source, language, text, unit, request):
         response = self.client.translate_text(
             Text=text, SourceLanguageCode=source, TargetLanguageCode=language
         )

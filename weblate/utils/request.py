@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -20,7 +20,6 @@
 
 from __future__ import unicode_literals
 
-from django.conf import settings
 from django.utils.encoding import force_text
 
 import user_agents
@@ -28,13 +27,6 @@ import user_agents
 
 def get_ip_address(request):
     """Return IP address for request."""
-    if settings.IP_BEHIND_REVERSE_PROXY:
-        proxy = request.META.get(settings.IP_PROXY_HEADER)
-    else:
-        proxy = None
-    if proxy:
-        # X_FORWARDED_FOR returns client1, proxy1, proxy2,...
-        return proxy.split(', ')[settings.IP_PROXY_OFFSET]
     return request.META.get('REMOTE_ADDR', '')
 
 

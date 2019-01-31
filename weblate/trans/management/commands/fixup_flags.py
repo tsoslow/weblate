@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -34,7 +34,7 @@ class Command(WeblateLangCommand):
                 unit.update_has_failing_check()
             if unit.fuzzy and unit.translated:
                 unit.translated = False
-                unit.save(backend=True, same_content=True)
+                unit.save(same_content=True)
 
         for translation in self.get_translations(**options):
             translation.invalidate_cache()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -19,6 +19,8 @@
 #
 
 from weblate.trans.management.commands import WeblateLangCommand
+
+from weblate.trans.tasks import perform_load
 
 
 class Command(WeblateLangCommand):
@@ -39,4 +41,4 @@ class Command(WeblateLangCommand):
         if options['lang'] is not None:
             langs = options['lang'].split(',')
         for component in self.get_components(**options):
-            component.create_translations(options['force'], langs)
+            perform_load.delay(component.pk, options['force'], langs)

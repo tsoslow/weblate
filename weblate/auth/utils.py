@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -22,12 +22,13 @@ from __future__ import unicode_literals
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
 
-from weblate.auth.data import PERMISSIONS, ROLES, GROUPS, SELECTION_ALL
+from weblate.auth.data import (
+    PERMISSIONS, GLOBAL_PERMISSIONS, ROLES, GROUPS, SELECTION_ALL
+)
 
 
-def migrate_permissions(model):
-    """Create permissions as defined in the data."""
-    for code, name in PERMISSIONS:
+def migrate_permissions_list(model, permissions):
+    for code, name in permissions:
         instance, created = model.objects.get_or_create(
             codename=code,
             defaults={'name': name}
@@ -37,16 +38,25 @@ def migrate_permissions(model):
             instance.save(update_fields=['name'])
 
 
+def migrate_permissions(model):
+    """Create permissions as defined in the data."""
+    migrate_permissions_list(model, PERMISSIONS)
+    migrate_permissions_list(model, GLOBAL_PERMISSIONS)
+
+
 def migrate_roles(model, perm_model):
     """Create roles as defined in the data."""
+    result = False
     for role, permissions in ROLES:
-        instance = model.objects.get_or_create(
+        instance, created = model.objects.get_or_create(
             name=role
-        )[0]
+        )
+        result |= created
         instance.permissions.set(
             perm_model.objects.filter(codename__in=permissions),
             clear=True
         )
+    return result
 
 
 def migrate_groups(model, role_model, update=False):

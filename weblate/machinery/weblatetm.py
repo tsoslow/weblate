@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -24,7 +24,6 @@ from django.utils.encoding import force_text
 
 from weblate.machinery.base import MachineTranslation
 from weblate.trans.models import Unit
-from weblate.utils.search import Comparer
 
 
 class WeblateTranslation(MachineTranslation):
@@ -51,18 +50,16 @@ class WeblateTranslation(MachineTranslation):
             unit.get_source_plurals()[0],
         )
 
-    def download_translations(self, source, language, text, unit, user):
+    def download_translations(self, source, language, text, unit, request):
         """Download list of possible translations from a service."""
         matching_units = Unit.objects.prefetch().filter(
-            translation__component__project__in=user.allowed_projects
+            translation__component__project__in=request.user.allowed_projects
         ).more_like_this(unit, 1000)
-
-        comparer = Comparer()
 
         result = set((
             self.format_unit_match(
                 munit,
-                comparer.similarity(text, munit.get_source_plurals()[0])
+                self.comparer.similarity(text, munit.get_source_plurals()[0])
             )
             for munit in matching_units
         ))

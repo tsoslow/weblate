@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -31,7 +31,11 @@ from weblate.trans.models.change import Change
 from weblate.utils.unitdata import UnitData
 from weblate.trans.mixins import UserDisplayMixin
 from weblate.utils import messages
+from weblate.utils.antispam import report_spam
+from weblate.utils.fields import JSONField
 from weblate.utils.state import STATE_TRANSLATED
+from weblate.utils.request import get_ip_address
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class SuggestionManager(models.Manager):
@@ -41,15 +45,21 @@ class SuggestionManager(models.Manager):
         """Create new suggestion for this unit."""
         user = request.user
 
-        same = self.filter(
-            target=target,
-            content_hash=unit.content_hash,
-            language=unit.translation.language,
-            project=unit.translation.component.project,
-        )
+        try:
+            same = self.get(
+                target=target,
+                content_hash=unit.content_hash,
+                language=unit.translation.language,
+                project=unit.translation.component.project,
+            )
 
-        if same.exists() or (unit.target == target and not unit.fuzzy):
+            if same.user == user or not vote:
+                return False
+            same.add_vote(unit.translation, request, True)
             return False
+
+        except ObjectDoesNotExist:
+            pass
 
         # Create the suggestion
         suggestion = self.create(
@@ -57,7 +67,11 @@ class SuggestionManager(models.Manager):
             content_hash=unit.content_hash,
             language=unit.translation.language,
             project=unit.translation.component.project,
-            user=user
+            user=user,
+            userdetails={
+                'address': get_ip_address(request),
+                'agent': request.META.get('HTTP_USER_AGENT', ''),
+            },
         )
 
         # Record in change
@@ -114,6 +128,7 @@ class Suggestion(UnitData, UserDisplayMixin):
         settings.AUTH_USER_MODEL, null=True, blank=True,
         on_delete=models.deletion.CASCADE
     )
+    userdetails = JSONField()
     language = models.ForeignKey(
         Language, on_delete=models.deletion.CASCADE
     )
@@ -165,8 +180,15 @@ class Suggestion(UnitData, UserDisplayMixin):
         if not failure:
             self.delete()
 
-    def delete_log(self, user, change=Change.ACTION_SUGGESTION_DELETE):
+    def delete_log(self, user, change=Change.ACTION_SUGGESTION_DELETE,
+                   is_spam=False):
         """Delete with logging change"""
+        if is_spam and self.userdetails:
+            report_spam(
+                self.userdetails['address'],
+                self.userdetails['agent'],
+                self.target
+            )
         for unit in self.related_units:
             Change.objects.create(
                 unit=unit,

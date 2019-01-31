@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -52,7 +52,7 @@ class RemoveZeroSpace(AutoFix):
     name = _('Zero-width space')
 
     def fix_single_target(self, target, source, unit):
-        if unit.translation.language.code.split('_')[0] == 'km':
+        if unit.translation.language.base_code == 'km':
             return target, False
         if '\u200b' not in source and '\u200b' in target:
             return target.replace('\u200b', ''), True

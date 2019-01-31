@@ -18,6 +18,8 @@ env:
     - CI_DATABASE=postgresql
     - SAUCE_USERNAME=nijel
     - CC_TEST_REPORTER_ID=b477753e9d539176556058b92f0f6594e7823ab95d1db1348f189745ea618af6
+before_install:
+ - python -c "import fcntl; fcntl.fcntl(1, fcntl.F_SETFL, 0)"
 # commands to install dependencies
 install:
   - export TESSERACT_INSTALL=$HOME/.tesseract
@@ -30,7 +32,7 @@ install:
   - pip install --upgrade pip wheel
   # Install PyPI packages
   - pip install $CI_DEPS Cython
-  - pip install -r requirements-optional.txt -r ci/requirements-travis.txt
+  - pip install -r requirements-optional.txt -r requirements-test.txt -r ci/requirements-travis.txt
   - if [ "$CI_MODE" = selenium -a -n "$SAUCE_USERNAME" -a -n "$SAUCE_ACCESS_KEY" ] ; then ./ci/install-sauce ; fi
 # create databases
 before_script:
@@ -52,7 +54,7 @@ script:
 # upload coverage
 after_script:
   # Kill Sauce Connect Proxy if running
-  - if [ -f ~/.sauce-pid ] ; then kill `cat ~/.sauce-pid` ; fi
+  - if [ -f ~/.sauce-pid ] ; then kill `cat ~/.sauce-pid` ; cat ~/.sauce-log ; fi
   # Combine partial reports
   - coverage combine
   - coverage xml
@@ -62,8 +64,6 @@ after_script:
   - python-codacy-coverage -r coverage.xml
   # CodeClimate
   - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
-# use docker based faster build
-sudo: false
 matrix:
   include:
     - name: "Django 2.1, sqlite"
@@ -101,7 +101,7 @@ matrix:
       env: CI_MODE=docs
   allow_failures:
     - python: "3.6"
-      env: CI_DEPS="--pre Django" CI_DATABASE=postgresql
+      env: CI_DEPS="--pre Django"
 addons:
   apt:
     packages:

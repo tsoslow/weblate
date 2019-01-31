@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -127,11 +127,15 @@ class LocationLinksTest(SimpleTestCase):
         self.assertHTMLEqual(
             get_location_links(self.profile, self.unit),
             '''
-            <a href="http://example.net/foo.bar#L123" target="_blank">
+            <a class="long-filename"
+                href="http://example.net/foo.bar#L123" target="_blank"
+                rel="noopener noreferrer">
             foo.bar:123
             <i class="fa fa-external-link"></i>
             </a>
-            <a href="http://example.net/bar.foo#L321" target="_blank">
+            <a class="long-filename"
+                href="http://example.net/bar.foo#L321" target="_blank"
+                rel="noopener noreferrer">
             bar.foo:321
             <i class="fa fa-external-link"></i>
             </a>
@@ -146,7 +150,9 @@ class LocationLinksTest(SimpleTestCase):
         self.assertHTMLEqual(
             get_location_links(self.profile, self.unit),
             '''
-            <a href="http://example.net/foo.bar#L123" target="_blank">
+            <a class="long-filename"
+                href="http://example.net/foo.bar#L123" target="_blank"
+                rel="noopener noreferrer">
             foo.bar:123
             <i class="fa fa-external-link"></i>
             </a>
@@ -162,7 +168,9 @@ class LocationLinksTest(SimpleTestCase):
         self.assertHTMLEqual(
             get_location_links(self.profile, self.unit),
             '''
-            <a href="editor://open/?file=foo.bar&amp;line=123" target="_blank">
+            <a class="long-filename"
+                href="editor://open/?file=foo.bar&amp;line=123" target="_blank"
+                rel="noopener noreferrer">
             foo.bar:123
             <i class="fa fa-external-link"></i>
             </a>

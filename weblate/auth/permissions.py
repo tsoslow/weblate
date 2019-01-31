@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -46,7 +46,7 @@ def cache_perm(func):
         cache_key = (
             func.__name__,
             obj.__class__.__name__,
-            obj.pk,
+            obj.pk if obj is not None else '',
             permission
         )
 
@@ -56,6 +56,16 @@ def cache_perm(func):
         return user.perm_cache[cache_key]
 
     return cache_perm_wrapper
+
+
+@cache_perm
+def check_global_permission(user, permission, obj):
+    """Generic permission check for base classes"""
+    if user.is_superuser:
+        return True
+    return user.groups.filter(
+        roles__permissions__codename=permission
+    ).exists()
 
 
 @cache_perm
@@ -103,8 +113,14 @@ def check_can_edit(user, permission, obj, is_vote=False):
     if isinstance(obj, Translation):
         translation = obj
         component = obj.component
+        project = component.project
     elif isinstance(obj, Component):
         component = obj
+        project = component.project
+    elif isinstance(obj, Project):
+        project = obj
+    else:
+        raise ValueError('Uknown object for permission check!')
 
     # Email is needed for user to be able to edit
     if user.is_authenticated and not user.email:
@@ -130,12 +146,15 @@ def check_can_edit(user, permission, obj, is_vote=False):
         return False
 
     # Special check for voting
-    if is_vote and component and not component.suggestion_voting:
+    if ((is_vote and component and not component.suggestion_voting) or
+            (not is_vote and translation and
+             component.suggestion_voting and
+             component.suggestion_autoaccept > 0 and
+             not check_permission(user, 'unit.override', obj))):
         return False
-    elif not is_vote and translation \
-            and component.suggestion_voting \
-            and component.suggestion_autoaccept > 0 \
-            and not check_permission(user, 'unit.override', obj):
+
+    # Billing limits
+    if not project.paid:
         return False
 
     return True

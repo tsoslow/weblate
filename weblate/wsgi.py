@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -43,6 +43,9 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "weblate.settings")
 # setting points here.
 application = get_wsgi_application()
 
-# Apply WSGI middleware here.
-# from helloworld.wsgi import HelloWorldApplication
-# application = HelloWorldApplication(application)
+# Apply Sentry middleware
+try:
+    from raven.contrib.django.raven_compat.middleware.wsgi import Sentry
+    application = Sentry(get_wsgi_application())
+except ImportError:
+    pass

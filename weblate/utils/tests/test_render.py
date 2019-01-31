@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -36,3 +36,9 @@ class RenderTest(SimpleTestCase):
     def test_float_cs(self):
         with override('cs'):
             self.test_float()
+
+    def test_replace(self):
+        self.assertEqual(
+            render_template('{% replace "a-string-with-dashes" "-" " " %}'),
+            'a string with dashes'
+        )

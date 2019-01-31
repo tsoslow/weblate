@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -168,7 +168,7 @@ class EditValidationTest(ViewTestCase):
     def test_edit_spam(self):
         """Editing with spam trap."""
         response = self.edit(content='1')
-        self.assertContains(response, 'po/\u200Bcs.po, string 2')
+        self.assertContains(response, 'po/cs.po, string 2')
 
     def test_merge(self):
         """Merging with invalid parameter."""
@@ -284,7 +284,7 @@ class EditResourceSourceTest(ViewTestCase):
         unit = translation.unit_set.get(context='hello')
         self.assertEqual(unit.state, STATE_TRANSLATED)
 
-    def get_translation(self):
+    def get_translation(self, language=None):
         return self.component.translation_set.get(
             language_code=self._language_code
         )
@@ -401,6 +401,13 @@ class EditXliffComplexTest(EditTest):
 
     def create_component(self):
         return self.create_xliff('complex')
+
+
+class EditXliffResnameTest(EditTest):
+    has_plurals = False
+
+    def create_component(self):
+        return self.create_xliff('only-resname')
 
 
 class EditXliffTest(EditTest):
@@ -617,26 +624,6 @@ class EditComplexTest(ViewTestCase):
         )
         self.assertContains(response, 'Invalid revert request!')
         self.assert_backend(2)
-
-    def test_edit_message(self):
-        # Save with failing check
-        response = self.edit_unit(
-            'Hello, world!\n',
-            'Nazdar svete!',
-            commit_message='Fixing issue #666',
-        )
-        # We should get to second message
-        self.assert_redirects_offset(response, self.translate_url, 2)
-
-        # Did the commit message got stored?
-        translation = self.get_translation()
-        self.assertEqual(
-            'Fixing issue #666',
-            translation.commit_message
-        )
-
-        # Try commiting
-        translation.commit_pending('test', self.get_request('/'))
 
     def test_edit_fixup(self):
         # Save with failing check

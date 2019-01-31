@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -19,6 +19,8 @@
 #
 
 from __future__ import unicode_literals
+
+import re
 
 from django.db import transaction
 from django.shortcuts import render, get_object_or_404, redirect
@@ -63,11 +65,13 @@ from weblate.accounts.forms import (
 from weblate.utils.ratelimit import check_rate_limit
 from weblate.logger import LOGGER
 from weblate.accounts.avatar import get_avatar_image, get_fallback_avatar_url
-from weblate.accounts.models import set_lang, Profile
+from weblate.accounts.models import set_lang
 from weblate.accounts.utils import remove_user
 from weblate.utils import messages
+from weblate.utils.ratelimit import session_ratelimit_post
 from weblate.trans.models import Change, Project, Component, Suggestion
-from weblate.trans.views.helper import get_project
+from weblate.utils.views import get_project
+from weblate.utils.errors import report_error
 from weblate.accounts.forms import (
     ProfileForm, SubscriptionForm, UserForm, ContactForm,
     SubscriptionSettingsForm, UserSettingsForm, DashboardSettingsForm
@@ -100,6 +104,8 @@ CONTACT_SUBJECTS = {
     'hosting': 'Commercial hosting',
     'account': 'Suspicious account activity',
 }
+
+ANCHOR_RE = re.compile(r'^#[a-z]+$')
 
 
 class EmailSentView(TemplateView):
@@ -194,32 +200,9 @@ def avoid_demo(function):
     return demo_wrap
 
 
-def session_ratelimit_post(function):
-    """Session based rate limiting for POST requests."""
-    def rate_wrap(request, *args, **kwargs):
-        attempts = request.session.get('auth_attempts', 0)
-        if request.method == 'POST':
-            if attempts >= settings.RATELIMIT_ATTEMPTS:
-                rotate_token(request)
-                if request.user.is_authenticated:
-                    logout(request)
-                messages.error(
-                    request,
-                    _('Too many attempts, you have been logged out!')
-                )
-                return redirect('login')
-            request.session['auth_attempts'] = attempts + 1
-        return function(request, *args, **kwargs)
-    return rate_wrap
-
-
-def session_ratelimit_reset(request):
-    request.session['auth_attempts'] = 0
-
-
 def redirect_profile(page=''):
     url = reverse('profile')
-    if page and page.startswith('#'):
+    if page and ANCHOR_RE.match(page):
         url = url + page
     return HttpResponseRedirect(url)
 
@@ -230,7 +213,7 @@ def user_profile(request):
 
     profile = request.user.profile
 
-    if not profile.language:
+    if not request.user.is_demo and not profile.language:
         profile.language = get_language()
         profile.save(update_fields=['language'])
 
@@ -292,19 +275,11 @@ def user_profile(request):
         license=''
     )
 
-    billings = None
-    if 'weblate.billing' in settings.INSTALLED_APPS:
-        # pylint: disable=wrong-import-position
-        from weblate.billing.models import Billing
-        billings = Billing.objects.filter(
-            projects__in=request.user.projects_with_perm('billing.view')
-        ).distinct()
-
     result = render(
         request,
         'accounts/profile.html',
         {
-            'form': forms[0],
+            'languagesform': forms[0],
             'subscriptionform': forms[1],
             'subscriptionsettingsform': forms[2],
             'usersettingsform': forms[3],
@@ -317,7 +292,6 @@ def user_profile(request):
             'new_backends': new_backends,
             'managed_projects': request.user.owned_projects,
             'auditlog': request.user.auditlog_set.all()[:20],
-            'billings': billings,
         }
     )
     result.set_cookie(
@@ -329,7 +303,7 @@ def user_profile(request):
 
 @login_required
 @avoid_demo
-@session_ratelimit_post
+@session_ratelimit_post('remove')
 @never_cache
 def user_remove(request):
     is_confirmation = 'remove_confirm' in request.session
@@ -343,13 +317,11 @@ def user_remove(request):
                 _('Your account has been removed.')
             )
             return redirect('home')
-        else:
-            confirm_form = EmptyConfirmForm(request)
+        confirm_form = EmptyConfirmForm(request)
 
     elif request.method == 'POST':
         confirm_form = PasswordConfirmForm(request, request.POST)
         if confirm_form.is_valid():
-            session_ratelimit_reset(request)
             store_userid(request, remove=True)
             request.GET = {'email': request.user.email}
             return social_complete(request, 'email')
@@ -367,7 +339,7 @@ def user_remove(request):
 
 
 @avoid_demo
-@session_ratelimit_post
+@session_ratelimit_post('confirm')
 @never_cache
 def confirm(request):
     details = request.session.get('reauthenticate')
@@ -380,7 +352,6 @@ def confirm(request):
     if request.method == 'POST':
         confirm_form = PasswordConfirmForm(request, request.POST)
         if confirm_form.is_valid():
-            session_ratelimit_reset(request)
             request.session.pop('reauthenticate')
             request.session['reauthenticate_done'] = True
             return redirect('social:complete', backend=details['backend'])
@@ -455,11 +426,16 @@ def contact(request):
 
 
 @login_required
-@session_ratelimit_post
+@session_ratelimit_post('hosting')
 @never_cache
 def hosting(request):
     """Form for hosting request."""
-    if not settings.OFFER_HOSTING:
+    if not settings.OFFER_HOSTING or request.user.is_demo:
+        if request.user.is_demo:
+            message = _(
+                'Please log in using your personal account to request hosting.'
+            )
+            messages.warning(request, message)
         return redirect('home')
 
     if request.method == 'POST':
@@ -493,7 +469,6 @@ def hosting(request):
 def user_page(request, user):
     """User details page."""
     user = get_object_or_404(User, username=user)
-    profile = Profile.objects.get_or_create(user=user)[0]
 
     # Filter all user activity
     all_changes = Change.objects.last_changes(request.user).filter(
@@ -513,7 +488,7 @@ def user_page(request, user):
         request,
         'accounts/user.html',
         {
-            'page_profile': profile,
+            'page_profile': user.profile,
             'page_user': user,
             'last_changes': last_changes,
             'last_changes_url': urlencode(
@@ -547,7 +522,7 @@ def redirect_single(request, backend):
 
 
 class WeblateLoginView(LoginView):
-    """Login handler, just wrapper around standard Django login."""
+    """Login handler, just a wrapper around standard Django login."""
     form_class = LoginForm
     template_name = 'accounts/login.html'
     redirect_authenticated_user = True
@@ -579,11 +554,14 @@ class WeblateLoginView(LoginView):
         if len(auth_backends) == 1 and auth_backends[0] != 'email':
             return redirect_single(request, auth_backends[0])
 
+        if 'next' in request.GET:
+            messages.info(request, _('Log in to use Weblate.'))
+
         return super(WeblateLoginView, self).dispatch(request, *args, **kwargs)
 
 
 class WeblateLogoutView(LogoutView):
-    """Logout handler, just wrapper around standard Django logout."""
+    """Logout handler, just a wrapper around standard Django logout."""
     @method_decorator(require_POST)
     @method_decorator(login_required)
     @method_decorator(never_cache)
@@ -593,7 +571,7 @@ class WeblateLogoutView(LogoutView):
         )
 
     def get_next_page(self):
-        messages.info(self.request, _('Thanks for using Weblate!'))
+        messages.info(self.request, _('Thank you for using Weblate.'))
         return reverse('home')
 
 
@@ -605,7 +583,6 @@ def fake_email_sent(request, reset=False):
     return redirect('email-sent')
 
 
-@session_ratelimit_post
 @never_cache
 def register(request):
     """Registration form."""
@@ -690,7 +667,7 @@ def email_login(request):
 
 @login_required
 @avoid_demo
-@session_ratelimit_post
+@session_ratelimit_post('password')
 @never_cache
 def password(request):
     """Password change / set form."""
@@ -705,8 +682,6 @@ def password(request):
     if request.method == 'POST':
         form = SetPasswordForm(request.user, request.POST)
         if form.is_valid() and do_change:
-            session_ratelimit_reset(request)
-
             # Clear flag forcing user to set password
             redirect_page = '#auth'
             if 'show_set_password' in request.session:
@@ -779,7 +754,7 @@ def reset_password(request):
     # We're already in the reset phase
     if 'perform_reset' in request.session:
         return reset_password_set(request)
-    elif request.method == 'POST':
+    if request.method == 'POST':
         form = ResetForm(request.POST)
         if settings.REGISTRATION_CAPTCHA:
             captcha = CaptchaForm(request, form, request.POST)
@@ -814,7 +789,7 @@ def reset_password(request):
 @require_POST
 @login_required
 @avoid_demo
-@session_ratelimit_post
+@session_ratelimit_post('reset_api')
 def reset_api_key(request):
     """Reset user API key"""
     # Need to delete old token as key is primary key
@@ -867,7 +842,7 @@ class SuggestionView(ListView):
         else:
             user = get_object_or_404(User, username=self.kwargs['user'])
         result['page_user'] = user
-        result['page_profile'] = Profile.objects.get_or_create(user=user)[0]
+        result['page_profile'] = user.profile
         return result
 
 
@@ -890,6 +865,53 @@ def social_auth(request, backend):
     return auth(request, backend)
 
 
+def auth_fail(request, message):
+    messages.error(request, message)
+    return redirect(reverse('login'))
+
+
+def auth_redirect_token(request):
+    return auth_fail(
+        request,
+        _(
+            'Failed to verify your registration! '
+            'Probably the verification token has expired. '
+            'Please try the registration again.'
+        )
+    )
+
+
+def auth_redirect_state(request):
+    return auth_fail(
+        request,
+        _('Authentication failed due to invalid session state.')
+    )
+
+
+def handle_missing_parameter(request, backend, error):
+    report_error(error, request)
+    if backend != 'email' and error.parameter == 'email':
+        return auth_fail(
+            request,
+            _('Got no e-mail address from third party authentication service!')
+        )
+    if error.parameter in ('email', 'user', 'expires'):
+        return auth_redirect_token(request)
+    if error.parameter in ('state', 'code'):
+        return auth_redirect_state(request)
+    if error.parameter == 'demo':
+        return auth_fail(
+            request,
+            _('Can not change authentication for demo!')
+        )
+    if error.parameter == 'disabled':
+        return auth_fail(
+            request,
+            _('New registrations are disabled!')
+        )
+    raise
+
+
 @csrf_exempt
 @avoid_demo
 @never_cache
@@ -899,54 +921,32 @@ def social_complete(request, backend):
     - blocks access for demo user
     - gracefuly handle backend errors
     """
-    # pylint: disable=too-many-branches,too-many-return-statements
-    def fail(message):
-        messages.error(request, message)
-        return redirect(reverse('login'))
-
-    def redirect_token():
-        return fail(_(
-            'Failed to verify your registration! '
-            'Probably the verification token has expired. '
-            'Please try the registration again.'
-        ))
-
-    def redirect_state():
-        return fail(
-            _('Authentication failed due to invalid session state.')
-        )
-
     try:
         return complete(request, backend)
     except InvalidEmail:
-        return redirect_token()
+        return auth_redirect_token(request)
     except AuthMissingParameter as error:
-        if error.parameter in ('email', 'user', 'expires'):
-            return redirect_token()
-        elif error.parameter in ('state', 'code'):
-            return redirect_state()
-        elif error.parameter == 'demo':
-            return fail(
-                _('Can not change authentication for demo!')
-            )
-        elif error.parameter == 'disabled':
-            return fail(
-                _('New registrations are disabled!')
-            )
-        raise
-    except (AuthStateMissing, AuthStateForbidden):
-        return redirect_state()
-    except AuthFailed:
-        return fail(_(
+        return handle_missing_parameter(request, backend, error)
+    except (AuthStateMissing, AuthStateForbidden) as error:
+        report_error(error, request)
+        return auth_redirect_state(request)
+    except AuthFailed as error:
+        report_error(error, request)
+        return auth_fail(request, _(
             'Authentication has failed, probably due to expired token '
             'or connection error.'
         ))
     except AuthCanceled:
-        return fail(_('Authentication has been cancelled.'))
-    except AuthForbidden:
-        return fail(_('Authentication has been forbidden by server.'))
+        return auth_fail(
+            request, _('Authentication has been cancelled.')
+        )
+    except AuthForbidden as error:
+        report_error(error, request)
+        return auth_fail(
+            request, _('Authentication has been forbidden by server.')
+        )
     except AuthAlreadyAssociated:
-        return fail(_(
-            'Failed to complete your registration! This authentication, '
-            'email or username are already associated with another account!'
+        return auth_fail(request, _(
+            'Could not complete registration. The supplied authentication, '
+            'email or username is already in use for another account.'
         ))

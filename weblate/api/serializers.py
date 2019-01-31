@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -246,6 +246,9 @@ class TranslationSerializer(RemovableSerializer):
     have_comment = serializers.IntegerField(
         source='stats.comments', read_only=True,
     )
+    last_change = serializers.DateTimeField(
+        source='stats.last_changed', read_only=True,
+    )
     last_author = serializers.CharField(
         source='get_last_author', read_only=True,
     )
@@ -341,11 +344,23 @@ class LockRequestSerializer(ReadOnlySerializer):
 class UploadRequestSerializer(ReadOnlySerializer):
     overwrite = serializers.BooleanField()
     file = serializers.FileField()
+    author_email = serializers.EmailField(required=False)
+    author_name = serializers.CharField(max_length=200, required=False)
+    method = serializers.ChoiceField(
+        choices=('translate', 'approve', 'suggest', 'fuzzy'),
+        required=False,
+        default='translate',
+    )
+    fuzzy = serializers.ChoiceField(
+        choices=('', 'process', 'approve'),
+        required=False,
+        default=''
+    )
 
 
 class RepoRequestSerializer(ReadOnlySerializer):
     operation = serializers.ChoiceField(
-        choices=('commit', 'pull', 'push', 'reset')
+        choices=('commit', 'pull', 'push', 'reset', 'cleanup')
     )
 
 

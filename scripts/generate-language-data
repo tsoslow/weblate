@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -32,7 +33,7 @@ SPLIT_RE = re.compile(
 
 HEADER = '''# -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -77,6 +78,11 @@ with open('scripts/language-data/languages.csv', 'r') as csvfile:
     reader = csv.reader(csvfile, delimiter=';')
     LANGUAGES = list(reader)
 
+# Read aliases
+with open("scripts/language-data/aliases.csv", "r") as csvfile:
+    reader = csv.reader(csvfile, delimiter=";")
+    ALIASES = [alias for alias in reader if alias[0] != "#"]
+
 # Read extra plurals
 with open('scripts/language-data/extraplurals.csv', 'r') as csvfile:
     reader = csv.reader(csvfile, delimiter=';')
@@ -108,6 +114,11 @@ with open('weblate/langdata/languages.py', 'w') as output:
             row[3],
         ))
     output.write(')\n')
+    output.write('# Language aliases\n')
+    output.write('ALIASES = {\n')
+    for row in ALIASES:
+        output.write("    '{}': '{}',\n".format(*row))
+    output.write('}\n')
 
 # Generate same check blacklist
 words = set()

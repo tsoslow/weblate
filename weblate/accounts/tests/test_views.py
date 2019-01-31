@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -57,7 +57,6 @@ class ViewTest(TestCase):
         user.full_name = 'First Second'
         user.email = 'noreply@example.com'
         user.save()
-        Profile.objects.get_or_create(user=user)
         return user
 
     @override_settings(
@@ -119,6 +118,18 @@ class ViewTest(TestCase):
             response,
             'Too many messages sent, please try again later!'
         )
+
+    @override_settings(
+        RATELIMIT_ATTEMPTS=1,
+        RATELIMIT_WINDOW=0,
+    )
+    def test_contact_rate_window(self):
+        """Test for contact form rate limiting."""
+        message = 'Too many messages sent, please try again later!'
+        response = self.client.post(reverse('contact'), CONTACT_DATA)
+        self.assertNotContains(response, message)
+        response = self.client.post(reverse('contact'), CONTACT_DATA)
+        self.assertNotContains(response, message)
 
     @override_settings(OFFER_HOSTING=False)
     def test_hosting_disabled(self):
@@ -364,6 +375,7 @@ class ProfileTest(FixtureTestCase):
                 'email': 'weblate@example.org',
                 'username': 'testik',
                 'dashboard_view': Profile.DASHBOARD_WATCHED,
+                'translate_mode': Profile.TRANSLATE_FULL,
             }
         )
         self.assertRedirects(response, reverse('profile'))

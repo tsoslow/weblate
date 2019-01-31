@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -36,6 +36,7 @@ class JSViewsTest(FixtureTestCase):
     @staticmethod
     def ensure_dummy_mt():
         """Ensure we have dummy mt installed"""
+        global MACHINE_TRANSLATION_SERVICES
         if 'dummy' in MACHINE_TRANSLATION_SERVICES:
             return
         name = 'weblate.machinery.dummy.DummyTranslation'
@@ -57,8 +58,10 @@ class JSViewsTest(FixtureTestCase):
         self.ensure_dummy_mt()
         unit = self.get_unit()
         response = self.client.get(
-            reverse('js-translate', kwargs={'unit_id': unit.id}),
-            {'service': 'dummy'}
+            reverse(
+                'js-translate',
+                kwargs={'unit_id': unit.id, 'service': 'dummy'}
+            )
         )
         self.assertContains(response, 'Ahoj')
         data = json.loads(response.content.decode('utf-8'))
@@ -82,8 +85,10 @@ class JSViewsTest(FixtureTestCase):
 
         # Invalid service
         response = self.client.get(
-            reverse('js-translate', kwargs={'unit_id': unit.id}),
-            {'service': 'invalid'}
+            reverse(
+                'js-translate',
+                kwargs={'unit_id': unit.id, 'service': 'invalid'}
+            )
         )
         self.assertEqual(response.status_code, 400)
 

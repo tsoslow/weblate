@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -37,10 +37,6 @@ from weblate.accounts.models import VerifiedEmail
 from weblate.utils.ratelimit import reset_rate_limit
 
 from weblate.trans.tests.test_views import RegistrationTestMixin
-
-# Workaround for httpretty breakage with pyopenssl
-# pylint: disable=unused-import
-import weblate.trans.tests.mypretty  # noqa
 
 REGISTRATION_DATA = {
     'username': 'username',
@@ -511,6 +507,8 @@ class RegistrationTest(BaseRegistrationTest):
         self.assertRedirects(response, reverse('confirm'))
 
         # Enter wrong password
+        user = User.objects.get(username='username')
+        reset_rate_limit('confirm', user=user)
         response = self.client.post(
             reverse('confirm'),
             {'password': 'invalid'}
@@ -687,15 +685,14 @@ class RegistrationTest(BaseRegistrationTest):
             response = self.client.get(
                 reverse('social:complete', args=('github',)),
                 {
-                    'state': query['state'][0],
-                    'redirect_state': return_query['redirect_state'][0],
+                    'state': query['state'][0] or return_query['state'][0],
                     'code': 'XXX'
                 },
                 follow=True
             )
             if fail:
                 self.assertContains(
-                    response, 'are already associated with another account'
+                    response, 'is already in use for another account'
                 )
                 return
             if confirm:

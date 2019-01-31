@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -57,7 +57,8 @@ class DiscoveryAddon(BaseAddon):
 
     def perform(self):
         self.discovery.perform(
-            remove=self.instance.configuration['remove']
+            remove=self.instance.configuration['remove'],
+            background=True
         )
 
     def get_settings_form(self, **kwargs):

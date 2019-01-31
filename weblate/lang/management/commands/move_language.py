@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -21,6 +21,7 @@
 from django.core.management.base import BaseCommand
 
 from weblate.lang.models import Language, Plural
+from weblate.checks.models import Check
 
 
 class Command(BaseCommand):
@@ -41,7 +42,15 @@ class Command(BaseCommand):
         target = Language.objects.get(code=options['target'])
 
         source.suggestion_set.update(language=target)
-        source.translation_set.update(language=target)
+        for translation in source.translation_set.all():
+            other = translation.component.translation_set.filter(
+                language=target
+            )
+            if other.exists():
+                self.stderr.write('Already exists: {}'.format(translation))
+                continue
+            translation.language = target
+            translation.save()
         source.whiteboardmessage_set.update(language=target)
 
         for profile in source.profile_set.all():
@@ -58,7 +67,19 @@ class Command(BaseCommand):
             group.languages.add(target)
         source.dictionary_set.update(language=target)
         source.comment_set.update(language=target)
-        source.check_set.update(language=target)
+
+        for check in source.check_set.all():
+            other = Check.objects.filter(
+                content_hash=check.content_hash,
+                project=check.project,
+                language=target,
+                check=check.check
+            )
+            if other.exists():
+                self.stderr.write('Already exists: {}'.format(check))
+                continue
+            check.language = target
+            check.save()
 
         for plural in source.plural_set.all():
             try:

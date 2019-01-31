@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -72,7 +72,7 @@ class MyMemoryTranslation(MachineTranslation):
             match['segment'],
         )
 
-    def download_translations(self, source, language, text, unit, user):
+    def download_translations(self, source, language, text, unit, request):
         """Download list of possible translations from MyMemory."""
         args = {
             'q': text.split('. ')[0][:500],

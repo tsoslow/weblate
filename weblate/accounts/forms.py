@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -37,7 +37,7 @@ from django.utils.encoding import force_text
 from weblate.auth.models import User
 from weblate.accounts.auth import try_get_user
 from weblate.accounts.models import Profile
-from weblate.accounts.utils import get_all_user_mails
+from weblate.accounts.utils import get_all_user_mails, invalidate_reset_codes
 from weblate.accounts.captcha import MathCaptcha
 from weblate.accounts.notifications import notify_account_activity
 from weblate.utils.ratelimit import reset_rate_limit, check_rate_limit
@@ -78,6 +78,7 @@ class PasswordField(forms.CharField):
     def __init__(self, *args, **kwargs):
         kwargs['widget'] = forms.PasswordInput(render_value=False)
         kwargs['max_length'] = 256
+        kwargs['strip'] = False
         super(PasswordField, self).__init__(*args, **kwargs)
 
 
@@ -109,7 +110,7 @@ class UsernameField(forms.CharField):
         super(UsernameField, self).__init__(*args, **kwargs)
 
     def clean(self, value):
-        """Username validation, requires unique name."""
+        """Username validation, requires a unique name."""
         if value is None:
             return None
         if value is not None:
@@ -187,6 +188,9 @@ class ProfileForm(forms.ModelForm):
         qs = Language.objects.have_translation()
         self.fields['languages'].queryset = qs
         self.fields['secondary_languages'].queryset = qs
+        self.helper = FormHelper(self)
+        self.helper.disable_csrf = True
+        self.helper.form_tag = False
 
 
 class SubscriptionForm(forms.ModelForm):
@@ -206,6 +210,9 @@ class SubscriptionForm(forms.ModelForm):
         user = kwargs['instance'].user
         self.fields['subscriptions'].required = False
         self.fields['subscriptions'].queryset = user.allowed_projects
+        self.helper = FormHelper(self)
+        self.helper.disable_csrf = True
+        self.helper.form_tag = False
 
 
 class SubscriptionSettingsForm(forms.ModelForm):
@@ -216,7 +223,8 @@ class SubscriptionSettingsForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(SubscriptionSettingsForm, self).__init__(*args, **kwargs)
-        self.helper = FormHelper()
+        self.helper = FormHelper(self)
+        self.helper.disable_csrf = True
         self.helper.form_tag = False
         self.helper.layout = Layout(
             Fieldset(
@@ -249,11 +257,18 @@ class UserSettingsForm(forms.ModelForm):
         model = Profile
         fields = (
             'hide_completed',
+            'translate_mode',
             'secondary_in_zen',
             'hide_source_secondary',
             'editor_link',
             'special_chars',
         )
+
+    def __init__(self, *args, **kwargs):
+        super(UserSettingsForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper(self)
+        self.helper.disable_csrf = True
+        self.helper.form_tag = False
 
 
 class DashboardSettingsForm(forms.ModelForm):
@@ -267,6 +282,12 @@ class DashboardSettingsForm(forms.ModelForm):
         widgets = {
             'dashboard_view': forms.RadioSelect,
         }
+
+    def __init__(self, *args, **kwargs):
+        super(DashboardSettingsForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper(self)
+        self.helper.disable_csrf = True
+        self.helper.form_tag = False
 
 
 class UserForm(forms.ModelForm):
@@ -293,13 +314,16 @@ class UserForm(forms.ModelForm):
         )
 
     def __init__(self, *args, **kwargs):
-
         super(UserForm, self).__init__(*args, **kwargs)
 
         emails = get_all_user_mails(self.instance)
 
         self.fields['email'].choices = [(x, x) for x in sorted(emails)]
         self.fields['username'].valid = self.instance.username
+
+        self.helper = FormHelper(self)
+        self.helper.disable_csrf = True
+        self.helper.form_tag = False
 
 
 class ContactForm(forms.Form):
@@ -344,7 +368,7 @@ class EmailForm(forms.Form, UniqueEmailMixin):
 
     email = EmailField(
         strip=False,
-        label=_("E-mail"),
+        label=_("Email"),
         help_text=_('Activation email will be sent here.'),
     )
     content = forms.CharField(required=False)
@@ -410,15 +434,18 @@ class SetPasswordForm(DjangoSetPasswordForm):
         self.user.set_password(password)
         self.user.save(update_fields=['password'])
 
+        # Updating the password logs out all other sessions for the user
+        # except the current one.
+        update_session_auth_hash(request, self.user)
+
+        # Change key for current session
+        request.session.cycle_key()
+
+        # Invalidate password reset codes
+        invalidate_reset_codes(self.user)
+
         if delete_session:
             request.session.flush()
-        else:
-            # Updating the password logs out all other sessions for the user
-            # except the current one.
-            update_session_auth_hash(request, self.user)
-
-            # Change key for current session
-            request.session.cycle_key()
 
         messages.success(
             request,
@@ -454,7 +481,7 @@ class CaptchaForm(forms.Form):
         ) % self.captcha.display
 
     def clean_captcha(self):
-        """Validation for captcha."""
+        """Validation for CAPTCHA."""
         if (self.fresh or
                 not self.captcha.validate(self.cleaned_data['captcha'])):
             self.generate_captcha()
@@ -486,7 +513,7 @@ class PasswordConfirmForm(EmptyConfirmForm):
     password = PasswordField(
         label=_("Current password"),
         help_text=_(
-            'Keep the field empty if you have not yet set your password.'
+            'Leave empty if you have not yet set a password.'
         ),
         required=False,
     )
@@ -634,6 +661,9 @@ class HostingForm(forms.Form):
         required=True,
         widget=forms.Textarea,
         max_length=1000,
+        help_text=_(
+            'Please describe the project and your relation to it.'
+        )
     )
     content = forms.CharField(required=False)
 

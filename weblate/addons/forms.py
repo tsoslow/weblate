@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -32,7 +32,8 @@ from django.utils.translation import ugettext_lazy as _
 
 from weblate.trans.discovery import ComponentDiscovery
 from weblate.formats.models import FILE_FORMATS
-from weblate.utils.validators import validate_render, validate_re
+from weblate.utils.render import validate_render
+from weblate.utils.validators import validate_re
 
 
 class BaseAddonForm(forms.Form):
@@ -92,6 +93,20 @@ class GettextCustomizeForm(BaseAddonForm):
             'By default gettext wraps lines at 77 chars and newlines, '
             'with --no-wrap parameter it wraps only at newlines.'
         )
+    )
+
+
+class GitSquashForm(BaseAddonForm):
+    squash = forms.ChoiceField(
+        label=_('Commit squashing'),
+        widget=forms.RadioSelect,
+        choices=(
+            ('all', _('All commits into one')),
+            ('language', _('Per language')),
+            ('file', _('Per file')),
+        ),
+        initial='all',
+        required=True,
     )
 
 

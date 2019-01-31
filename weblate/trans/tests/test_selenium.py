@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -35,6 +35,7 @@ from django.contrib.sites.models import Site
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.core import mail
+from django.test.utils import modify_settings
 
 from PIL import Image
 
@@ -61,7 +62,7 @@ import weblate.screenshots.views
 from weblate.trans.models import Project, Component, Change, Unit
 from weblate.trans.tests.test_views import RegistrationTestMixin
 from weblate.trans.tests.test_models import BaseLiveServerTestCase
-from weblate.trans.tests.utils import create_test_user
+from weblate.trans.tests.utils import create_test_user, create_billing
 from weblate.vcs.ssh import get_key_data
 
 # Check whether we should run Selenium tests
@@ -131,7 +132,8 @@ class SeleniumTests(BaseLiveServerTestCase, RegistrationTestMixin):
     def setUpClass(cls):
         if DO_SELENIUM:
             cls.caps['name'] = 'Weblate CI build'
-            cls.caps['screenResolution'] = '1280x1024'
+            if 'screenResolution' not in cls.caps:
+                cls.caps['screenResolution'] = '1280x1024'
             # Fill in Travis details in caps
             if 'TRAVIS_JOB_NUMBER' in os.environ:
                 cls.caps['tunnel-identifier'] = os.environ['TRAVIS_JOB_NUMBER']
@@ -304,22 +306,29 @@ class SeleniumTests(BaseLiveServerTestCase, RegistrationTestMixin):
         self.do_login()
 
         # Load profile
+        self.click(self.driver.find_element_by_id('user-dropdown'))
         with self.wait_for_page_load():
-            self.click(
-                self.driver.find_element_by_id('profile-button')
-            )
+            self.click(self.driver.find_element_by_id('settings-button'))
 
         # Wait for profile to load
         self.driver.find_element_by_id('subscriptions')
 
+        # Load translation memory
+        self.click(self.driver.find_element_by_id('user-dropdown'))
+        with self.wait_for_page_load():
+            self.click(self.driver.find_element_by_id('memory-button'))
+
+        self.screenshot('memory.png')
+
         # Finally logout
+        self.click(self.driver.find_element_by_id('user-dropdown'))
         with self.wait_for_page_load():
             self.click(
                 self.driver.find_element_by_id('logout-button')
             )
 
         # We should be back on home page
-        self.driver.find_element_by_id('suggestions')
+        self.driver.find_element_by_id('browse-projects')
 
     def register_user(self):
         # registration page
@@ -376,16 +385,17 @@ class SeleniumTests(BaseLiveServerTestCase, RegistrationTestMixin):
         # Confirm account
         self.driver.get(url)
 
-        # Check we're logged in
-        self.assertTrue(
-            'Test Example' in
-            self.driver.find_element_by_id('profile-button').text
-        )
-
         # Check we got message
         self.assertTrue(
             'You have activated' in
             self.driver.find_element_by_tag_name('body').text
+        )
+
+        # Check we're logged in
+        self.click(self.driver.find_element_by_id('user-dropdown'))
+        self.assertTrue(
+            'Test Example' in
+            self.driver.find_element_by_id('profile-button').text
         )
 
     def test_register_nocookie(self):
@@ -466,6 +476,7 @@ class SeleniumTests(BaseLiveServerTestCase, RegistrationTestMixin):
             self.click(element)
 
     def test_activity(self):
+        self.do_login()
         # Generate nice changes data
         for day in range(365):
             for i in range(int(10 + 10 * math.sin(2 * math.pi * day / 30))):
@@ -494,9 +505,10 @@ class SeleniumTests(BaseLiveServerTestCase, RegistrationTestMixin):
             user.social_auth.create(
                 provider='bitbucket', uid='weblate'
             )
+            self.click(self.driver.find_element_by_id('user-dropdown'))
             with self.wait_for_page_load():
                 self.click(
-                    self.driver.find_element_by_id('profile-button')
+                    self.driver.find_element_by_id('settings-button')
                 )
             self.click('Authentication')
             self.screenshot('authentication.png')
@@ -814,12 +826,10 @@ class SeleniumTests(BaseLiveServerTestCase, RegistrationTestMixin):
             self.click('Status widgets')
         self.screenshot('promote.png')
         with self.wait_for_page_load():
-            self.click(
-                self.driver.find_element_by_id('engage-link')
-            )
+            self.click(self.driver.find_element_by_id('engage-link'))
         self.screenshot('engage.png')
         with self.wait_for_page_load():
-            self.click('Translation project for WeblateOrg')
+            self.click(self.driver.find_element_by_id('engage-project'))
 
         # Glossary
         self.click('Glossaries')
@@ -989,9 +999,10 @@ class SeleniumTests(BaseLiveServerTestCase, RegistrationTestMixin):
         self.screenshot('source-review.png')
 
         # Profile
+        self.click(self.driver.find_element_by_id('user-dropdown'))
         with self.wait_for_page_load():
             self.click(
-                self.driver.find_element_by_id('profile-button')
+                self.driver.find_element_by_id('settings-button')
             )
         self.click('Preferences')
         self.screenshot('dashboard-dropdown.png')
@@ -1005,31 +1016,115 @@ class SeleniumTests(BaseLiveServerTestCase, RegistrationTestMixin):
             self.click('Dashboard')
         self.screenshot('your-translations.png')
 
+    @modify_settings(INSTALLED_APPS={'append': 'weblate.billing'})
+    def test_add_component(self):
+        """Test user adding project and component."""
+        user = self.do_login()
+        create_billing(user)
 
-# What other platforms we want to test
-EXTRA_PLATFORMS = {
-    'Chrome': {
-        'browserName': 'chrome',
-        'platform': 'Windows 10',
-    },
-}
+        # Open billing page
+        self.click(self.driver.find_element_by_id('user-dropdown'))
+        with self.wait_for_page_load():
+            self.click(
+                self.driver.find_element_by_id('billing-button')
+            )
+        self.screenshot('user-billing.png')
 
+        # Click on add project
+        with self.wait_for_page_load():
+            self.click(
+                self.driver.find_element_by_class_name('billing-add-project')
+            )
 
-def create_extra_classes():
-    """Create classes for testing with other browsers"""
-    classes = {}
-    for platform, caps in EXTRA_PLATFORMS.items():
-        name = '{0}_{1}'.format(
-            platform,
-            SeleniumTests.__name__,
+        # Add project
+        self.driver.find_element_by_id('id_name').send_keys('WeblateOrg')
+        self.driver.find_element_by_id(
+            'id_web'
+        ).send_keys(
+            'https://weblate.org/'
         )
-        classdict = dict(SeleniumTests.__dict__)
-        classdict.update({
-            'caps': caps,
-        })
-        classes[name] = type(name, (SeleniumTests,), classdict)
+        self.driver.find_element_by_id(
+            'id_mail'
+        ).send_keys(
+            'weblate@lists.cihar.com'
+        )
+        self.driver.find_element_by_id(
+            'id_instructions'
+        ).send_keys(
+            'https://weblate.org/contribute/'
+        )
+        self.screenshot('user-add-project.png')
+        with self.wait_for_page_load():
+            self.driver.find_element_by_id('id_name').submit()
+        self.screenshot('user-add-project-done.png')
 
-    globals().update(classes)
+        # Click on add component
+        with self.wait_for_page_load():
+            self.click(
+                self.driver.find_element_by_class_name('project-add-component')
+            )
 
+        # Add component
+        self.driver.find_element_by_id('id_name').send_keys('Language names')
+        self.driver.find_element_by_id(
+            'id_repo'
+        ).send_keys(
+            'https://github.com/WeblateOrg/demo.git'
+        )
+        self.screenshot('user-add-component-init.png')
+        with self.wait_for_page_load(timeout=1200):
+            self.driver.find_element_by_id('id_name').submit()
 
-create_extra_classes()
+        self.screenshot('user-add-component-discovery.png')
+        self.driver.find_element_by_id('id_id_discovery_0_1').click()
+        with self.wait_for_page_load(timeout=1200):
+            self.driver.find_element_by_id('id_name').submit()
+
+        self.driver.find_element_by_id(
+            'id_repoweb'
+        ).send_keys(
+            'https://github.com/WeblateOrg/demo/blob/'
+            '%(branch)s/%(file)s#L%(line)s'
+        )
+        self.driver.find_element_by_id(
+            'id_filemask'
+        ).send_keys(
+            'weblate/langdata/locale/*/LC_MESSAGES/django.po'
+        )
+        self.driver.find_element_by_id(
+            'id_new_base'
+        ).send_keys(
+            'weblate/langdata/locale/django.pot'
+        )
+        Select(
+            self.driver.find_element_by_id('id_file_format')
+        ).select_by_value('po')
+        self.driver.find_element_by_id('id_license').send_keys('GPL-3.0+')
+        self.clear_field(
+            self.driver.find_element_by_id(
+                'id_language_regex'
+            )
+        ).send_keys('^(cs|he|hu)$')
+        self.screenshot('user-add-component.png')
+
+    def test_alerts(self):
+        project = Project.objects.create(name='WeblateOrg', slug='weblateorg')
+        Component.objects.create(
+            name='Duplicates',
+            slug='duplicates',
+            project=project,
+            repo='https://github.com/WeblateOrg/test.git',
+            filemask='po-duplicates/*.dpo',
+            new_base='po-duplicates/hello.pot',
+            file_format='po',
+        )
+        self.do_login()
+        self.click('Tools')
+        with self.wait_for_page_load():
+            self.click('All projects')
+        with self.wait_for_page_load():
+            self.click('WeblateOrg')
+        with self.wait_for_page_load():
+            self.click('Duplicates')
+        self.click('Alerts')
+        self.screenshot('alerts.png')

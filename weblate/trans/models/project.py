@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -27,7 +27,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext as _, ugettext_lazy
 from django.utils.encoding import python_2_unicode_compatible
-from django.core.exceptions import ValidationError
+from django.utils.functional import cached_property
 from django.urls import reverse
 
 from weblate.lang.models import Language, get_english_lang
@@ -83,15 +83,20 @@ class Project(models.Model, URLMixin, PathMixin):
         verbose_name=ugettext_lazy('Set \"Translation-Team\" header'),
         default=True,
         help_text=ugettext_lazy(
-            'Whether the \"Translation-Team\" field in file headers should be '
-            'updated by Weblate.'
+            'Lets Weblate update the \"Translation-Team\" file header '
+            'of your project.'
         ),
     )
-
+    use_shared_tm = models.BooleanField(
+        verbose_name=ugettext_lazy('Use shared translation memory'),
+        default=settings.DEFAULT_SHARED_TM,
+        help_text=ugettext_lazy(
+            'Uses and contributes to the pool of shared translations '
+            'between projects.'
+        )
+    )
     access_control = models.IntegerField(
-        default=(
-            ACCESS_CUSTOM if settings.DEFAULT_CUSTOM_ACL else ACCESS_PUBLIC
-        ),
+        default=settings.DEFAULT_ACCESS_CONTROL,
         choices=ACCESS_CHOICES,
         verbose_name=_('Access control'),
         help_text=ugettext_lazy(
@@ -159,14 +164,6 @@ class Project(models.Model, URLMixin, PathMixin):
             group = self.group_set.get(name='{0}{1}'.format(self.name, group))
             user.groups.remove(group)
 
-    def clean(self):
-        try:
-            self.create_path()
-        except OSError as exc:
-            raise ValidationError(
-                _('Could not create project directory: %s') % str(exc)
-            )
-
     def get_reverse_url_kwargs(self):
         """Return kwargs for URL reversing."""
         return {
@@ -218,16 +215,12 @@ class Project(models.Model, URLMixin, PathMixin):
 
         super(Project, self).save(*args, **kwargs)
 
-    def get_languages(self):
+    @cached_property
+    def languages(self):
         """Return list of all languages used in project."""
         return Language.objects.filter(
             translation__component__project=self
         ).distinct()
-
-    def get_language_count(self):
-        """Return number of languages used in this project."""
-        return self.get_languages().count()
-    get_language_count.short_description = _('Languages')
 
     def repo_needs_commit(self):
         """Check whether there are any uncommitted changes."""
@@ -236,69 +229,48 @@ class Project(models.Model, URLMixin, PathMixin):
                 return True
         return False
 
+    def on_repo_components(self, default, call, *args, **kwargs):
+        """Wrapper for operations on repository."""
+        ret = default
+        for component in self.all_repo_components():
+            res = getattr(component, call)(*args, **kwargs)
+            if default:
+                ret = ret & res
+            else:
+                ret = ret | res
+        return ret
+
+    def commit_pending(self, reason, request):
+        """Commit any pending changes."""
+        return self.on_repo_components(True, 'commit_pending', reason, request)
+
     def repo_needs_merge(self):
-        for component in self.component_set.all():
-            if component.repo_needs_merge():
-                return True
-        return False
+        return self.on_repo_components(False, 'repo_needs_merge')
 
     def repo_needs_push(self):
-        for component in self.all_repo_components():
-            if component.repo_needs_push():
-                return True
-        return False
-
-    def commit_pending(self, reason, request, on_commit=True):
-        """Commit any pending changes."""
-        ret = False
-
-        components = self.all_repo_components()
-
-        # Iterate all components
-        for component in components:
-            component.commit_pending(reason, request, skip_push=True)
-
-        # Push all components, this avoids multiple pushes for linked
-        # components
-        for component in components:
-            ret |= component.push_if_needed(request, on_commit=on_commit)
-
-        return ret
+        return self.on_repo_components(False, 'repo_needs_push')
 
     def do_update(self, request=None, method=None):
         """Update all Git repos."""
-        ret = True
-        for component in self.all_repo_components():
-            ret &= component.do_update(request, method=method)
-        return ret
+        return self.on_repo_components(
+            True, 'do_update', request, method=method
+        )
 
     def do_push(self, request=None):
         """Push all Git repos."""
-        return self.commit_pending('push', request, on_commit=False)
+        return self.on_repo_components(True, 'do_push', request)
 
     def do_reset(self, request=None):
         """Push all Git repos."""
-        ret = False
-        for component in self.all_repo_components():
-            ret |= component.do_reset(request)
-        return ret
+        return self.on_repo_components(True, 'do_reset', request)
+
+    def do_cleanup(self, request=None):
+        """Push all Git repos."""
+        return self.on_repo_components(True, 'do_cleanup', request)
 
     def can_push(self):
         """Check whether any suprojects can push."""
-        ret = False
-        for component in self.component_set.all():
-            ret |= component.can_push()
-        return ret
-
-    @property
-    def last_change(self):
-        """Return date of last change done in Weblate."""
-        components = self.component_set.all()
-        changes = [component.last_change for component in components]
-        changes = [c for c in changes if c is not None]
-        if not changes:
-            return None
-        return max(changes)
+        return self.on_repo_components(False, 'can_push')
 
     def all_repo_components(self):
         """Return list of all unique VCS components."""
@@ -315,3 +287,11 @@ class Project(models.Model, URLMixin, PathMixin):
             result.append(other)
 
         return result
+
+    @cached_property
+    def paid(self):
+        return (
+            'weblate.billing' not in settings.INSTALLED_APPS or
+            not self.billing_set.exists() or
+            self.billing_set.filter(paid=True).exists()
+        )

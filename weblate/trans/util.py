@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -33,6 +33,8 @@ from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.http import is_safe_url
 from django.utils.translation import ugettext as _, ugettext_lazy
+from translate.storage.placeables.lisa import parse_xliff, strelem_to_xml
+from lxml import etree
 
 try:
     import pyuca  # pylint: disable=import-error
@@ -47,9 +49,6 @@ from six.moves.urllib.parse import urlparse
 from weblate.utils.data import data_dir
 
 PLURAL_SEPARATOR = '\x1e\x1e'
-
-# List of default domain names on which warn user
-DEFAULT_DOMAINS = ('example.net', 'example.com')
 
 PRIORITY_CHOICES = (
     (60, ugettext_lazy('Very high')),
@@ -80,7 +79,8 @@ def get_string(text):
         return ''
     if hasattr(text, 'strings'):
         return join_plural(text.strings)
-    return text
+    # We might get integer or float in some formats
+    return force_text(text)
 
 
 def is_repo_link(val):
@@ -105,10 +105,10 @@ def get_distinct_translations(units):
     return result
 
 
-def translation_percent(translated, total):
+def translation_percent(translated, total, zero_complete=True):
     """Return translation percentage."""
     if total == 0:
-        return 100.0
+        return 100.0 if zero_complete else 0.0
     if total is None:
         return 0.0
     perc = round(1000 * translated / total) / 10.0
@@ -120,11 +120,11 @@ def translation_percent(translated, total):
     return perc
 
 
-def add_configuration_error(name, message):
+def add_configuration_error(name, message, force_cache=False):
     """Log configuration error.
 
     Uses cache in case database is not yet ready."""
-    if apps.models_ready:
+    if apps.models_ready and not force_cache:
         from weblate.wladmin.models import ConfigurationError
         try:
             ConfigurationError.objects.add(name, message)
@@ -142,11 +142,11 @@ def add_configuration_error(name, message):
     cache.set('configuration-errors', errors)
 
 
-def delete_configuration_error(name):
+def delete_configuration_error(name, force_cache=False):
     """Delete configuration error.
 
     Uses cache in case database is not yet ready."""
-    if apps.models_ready:
+    if apps.models_ready and not force_cache:
         from weblate.wladmin.models import ConfigurationError
         try:
             ConfigurationError.objects.remove(name)
@@ -171,7 +171,26 @@ def get_clean_env(extra=None):
     }
     if extra is not None:
         environ.update(extra)
-    variables = ('PATH', 'LD_LIBRARY_PATH', 'SystemRoot')
+    variables = (
+        # Keep PATH setup
+        'PATH',
+        # Keep linker configuration
+        'LD_LIBRARY_PATH',
+        'LD_PRELOAD',
+        # Needed by Git on Windows
+        'SystemRoot',
+        # Pass proxy configuration
+        'http_proxy',
+        'https_proxy',
+        'HTTPS_PROXY',
+        'NO_PROXY',
+        # below two are nedded for openshift3 deployment,
+        # where nss_wrapper is used
+        # more on the topic on below link:
+        # https://docs.openshift.com/enterprise/3.2/creating_images/guidelines.html
+        'NSS_WRAPPER_GROUP',
+        'NSS_WRAPPER_PASSWD',
+    )
     for var in variables:
         if var in os.environ:
             environ[var] = os.environ[var]
@@ -184,25 +203,22 @@ def get_clean_env(extra=None):
     return environ
 
 
-def cleanup_repo_url(url):
+def cleanup_repo_url(url, text=None):
     """Remove credentials from repository URL."""
+    if text is None:
+        text = url
     parsed = urlparse(url)
     if parsed.username and parsed.password:
-        return url.replace(
-            '{0}:{1}@'.format(
-                parsed.username,
-                parsed.password
-            ),
+        return text.replace(
+            '{0}:{1}@'.format(parsed.username, parsed.password),
             ''
         )
     elif parsed.username:
-        return url.replace(
-            '{0}@'.format(
-                parsed.username,
-            ),
+        return text.replace(
+            '{0}@'.format(parsed.username),
             ''
         )
-    return url
+    return text
 
 
 def redirect_param(location, params, *args, **kwargs):
@@ -228,7 +244,7 @@ def get_project_description(project):
         'Join the translation or start translating your own project.',
     ).format(
         project,
-        project.get_language_count()
+        project.stats.languages
     )
 
 
@@ -282,16 +298,6 @@ def sort_objects(objects):
     return sort_unicode(objects, force_text)
 
 
-def check_domain(domain):
-    """Check whether site domain is correctly set"""
-    return (
-        domain not in DEFAULT_DOMAINS and
-        not domain.startswith('http:') and
-        not domain.startswith('https:') and
-        not domain.endswith('/')
-    )
-
-
 def redirect_next(next_url, fallback):
     """Redirect to next URL from request after validating it."""
     if (next_url is None or
@@ -299,3 +305,31 @@ def redirect_next(next_url, fallback):
             not next_url.startswith('/')):
         return redirect(fallback)
     return HttpResponseRedirect(next_url)
+
+
+def xliff_string_to_rich(string):
+    """XLIFF string to StringElement
+
+    Transform a string containing XLIFF placeholders as XML
+    into a rich content (StringElement)
+    """
+
+    return [parse_xliff(string)]
+
+
+def rich_to_xliff_string(string_elements):
+    """StringElement to XLIFF string
+
+    Transform rich content (StringElement) into
+    a string with placeholder kept as XML
+    """
+
+    result = ''
+    for string_element in string_elements:
+        xml = etree.Element(u'e')
+        strelem_to_xml(xml, string_element)
+        string_xml = etree.tostring(xml, encoding="unicode")
+        string_without_wrapping_element = string_xml[3:][:-4]
+        result += string_without_wrapping_element
+
+    return result

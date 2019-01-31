@@ -10,7 +10,7 @@ to your translation component and they will work behind the scenes. The addon
 management can be found under :guilabel:`Manage` menu of a translation
 component.
 
-.. image:: ../images/addons.png
+.. image:: /images/addons.png
 
 Built in addons
 +++++++++++++++
@@ -51,15 +51,15 @@ act as master and others will use :ref:`internal-urls` to it as a VCS
 configuration. You should choose the one which is less likely to disappear in
 the future here.
 
-Once you have one component from the target VCS, you can configured the
+Once you have one component from the target VCS, you can configure the
 discovery addon to find all translation components in the VCS. The matching is
-done using regular expresion so it can be quite powerful, but it can be complex
+done using regular expression so it can be quite powerful, but it can be complex
 to configure. You can use examples in the addon help for some common use cases.
 
 Once you hit save, you will be presented with a preview of matched components,
 so you can check whether the configuration actually matches your needs:
 
-.. image:: ../images/addon-discovery.png
+.. image:: /images/addon-discovery.png
 
 .. seealso::
 
@@ -100,7 +100,24 @@ Statistics generator
 --------------------
 
 This addon generates a file containing detailed information about the
-translation.
+translation. You can use Django template in both filename and content, see
+:ref:`markup` for detailed markup description.
+
+For example generating summary file for each translations:
+
+Name of generated file
+   ``locale/{{ language_code }}.json``
+Content
+   .. code-block:: json
+
+      {
+         "language": "{{ language_code }}",
+         "strings": "{{ stats.all }}",
+         "translated": "{{ stats.translated }}",
+         "last_changed": "{{ stats.last_changed }}",
+         "last_author": "{{ stats.last_author }}",
+      }
+
 
 .. seealso::
 
@@ -151,6 +168,13 @@ Update PO files to match POT (msgmerge)
 Update all PO files to match the POT file using msgmerge. This is triggered
 whenever new changes are pulled from the upstream repository.
 
+.. _addon-weblate.git.squash:
+
+Squash Git commits
+------------------
+
+Squash Git commits prior to pushing changes.
+
 .. _addon-weblate.json.customize:
 
 Customize JSON output
@@ -164,6 +188,13 @@ Formats the Java properties file
 --------------------------------
 
 This addon sorts the Java properties file.
+
+
+Customizing list of addons
+++++++++++++++++++++++++++
+
+List of addons is configured by :setting:`WEBLATE_ADDONS`, to add another addon
+simply include class absolute name in this setting.
 
 
 Writing addon
@@ -183,7 +214,7 @@ Executing scripts from addon
 ++++++++++++++++++++++++++++
 
 You can also use addons to execute external scripts. This used to be
-intergrated in Weblate, but now you have to write little code to wrap your
+integrated in Weblate, but now you have to write little code to wrap your
 script with an addon.
 
 .. literalinclude:: ../../weblate/addons/example_pre.py

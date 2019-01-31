@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -64,11 +64,14 @@ class AddonList(AddonViewMixin, ListView):
         component = self.kwargs['component_obj']
         result['object'] = component
         installed = set([x.addon.name for x in result['object_list']])
-        result['available'] = [
-            x for x in ADDONS.values()
-            if x.can_install(component, self.request.user)
-            and (x.multiple or x.name not in installed)
-        ]
+        result['available'] = sorted(
+            [
+                x for x in ADDONS.values()
+                if x.can_install(component, self.request.user)
+                and (x.multiple or x.name not in installed)
+            ],
+            key=lambda x: x.name
+        )
         return result
 
     def post(self, request, **kwargs):

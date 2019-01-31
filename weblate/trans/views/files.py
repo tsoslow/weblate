@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -19,8 +19,6 @@
 #
 from __future__ import unicode_literals
 
-import sys
-
 from django.core.exceptions import PermissionDenied
 from django.utils.translation import ugettext as _, ungettext
 from django.utils.encoding import force_text
@@ -30,7 +28,7 @@ from django.views.decorators.http import require_POST
 from weblate.utils import messages
 from weblate.utils.errors import report_error
 from weblate.trans.forms import get_upload_form, DownloadForm
-from weblate.trans.views.helper import (
+from weblate.utils.views import (
     get_translation, download_translation_file, show_form_errors,
 )
 
@@ -81,14 +79,11 @@ def upload_translation(request, project, component, lang):
         return redirect(obj)
 
     # Create author name
-    author = None
-    if (request.user.has_perm('upload.authorship', obj) and
-            form.cleaned_data['author_name'] != '' and
-            form.cleaned_data['author_email'] != ''):
-        author = '{0} <{1}>'.format(
-            form.cleaned_data['author_name'],
-            form.cleaned_data['author_email']
-        )
+    author_name = None
+    author_email = None
+    if request.user.has_perm('upload.authorship', obj):
+        author_name = form.cleaned_data['author_name']
+        author_email = form.cleaned_data['author_email']
 
     # Check for overwriting
     overwrite = False
@@ -101,8 +96,8 @@ def upload_translation(request, project, component, lang):
             request,
             request.FILES['file'],
             overwrite,
-            author,
-            merge_header=form.cleaned_data['merge_header'],
+            author_name,
+            author_email,
             method=form.cleaned_data['method'],
             fuzzy=form.cleaned_data['fuzzy'],
         )
@@ -124,6 +119,6 @@ def upload_translation(request, project, component, lang):
         messages.error(
             request, _('File content merge failed: %s') % force_text(error)
         )
-        report_error(error, sys.exc_info(), request)
+        report_error(error, request)
 
     return redirect(obj)

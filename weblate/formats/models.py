@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -20,11 +20,11 @@
 
 from __future__ import unicode_literals
 
-import traceback
-
 from appconf import AppConf
 
 from django.utils.functional import cached_property
+
+import six
 
 from weblate.trans.util import (
     add_configuration_error, delete_configuration_error,
@@ -52,9 +52,11 @@ class FileFormatLoader(ClassLoader):
             try:
                 fileformat.get_class()
                 delete_configuration_error(error_name)
-            except (AttributeError, ImportError):
-                add_configuration_error(error_name, traceback.format_exc())
+            except (AttributeError, ImportError) as error:
                 result.pop(fileformat.format_id)
+                if fileformat.format_id == 'rc' and six.PY3:
+                    continue
+                add_configuration_error(error_name, str(error))
 
         return result
 

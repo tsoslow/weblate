@@ -1,7 +1,7 @@
 
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -23,9 +23,9 @@ from __future__ import unicode_literals
 from io import BytesIO
 
 
-class StringIOMode(BytesIO):
+class BytesIOMode(BytesIO):
     """StringIO with mode attribute to make ttkit happy."""
     def __init__(self, filename, data):
-        super(StringIOMode, self).__init__(data)
+        super(BytesIOMode, self).__init__(data)
         self.mode = 'r'
         self.name = filename

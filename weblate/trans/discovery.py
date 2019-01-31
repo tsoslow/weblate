@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -28,11 +28,23 @@ from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.text import slugify
 
+from weblate.celery import app
 from weblate.logger import LOGGER
-from weblate.trans.models import Component
+from weblate.trans.models import Component, Project
 from weblate.utils.render import render_template
 from weblate.trans.util import path_separator
-from weblate.utils.invalidate import InvalidateContext
+
+# Attributes to copy from main component
+COPY_ATTRIBUTES = (
+    'project', 'branch', 'vcs',
+    'license_url', 'license', 'agreement',
+    'report_source_bugs', 'allow_translation_propagation', 'save_history',
+    'enable_suggestions', 'suggestion_voting', 'suggestion_autoaccept',
+    'check_flags', 'new_lang',
+    'commit_message', 'add_message', 'delete_message', 'merge_message',
+    'committer_name', 'committer_email',
+    'push_on_commit', 'commit_pending_age',
+)
 
 
 class ComponentDiscovery(object):
@@ -102,6 +114,7 @@ class ComponentDiscovery(object):
                 result[mask] = {
                     'files': {path},
                     'languages': {groups['language']},
+                    'files_langs': {(path, groups['language'])},
                     'base_file': render_template(
                         self.base_file_template, **groups
                     ),
@@ -115,9 +128,16 @@ class ComponentDiscovery(object):
             else:
                 result[mask]['files'].add(path)
                 result[mask]['languages'].add(groups['language'])
+                result[mask]['files_langs'].add((path, groups['language']))
         return result
 
-    def create_component(self, main, match, **params):
+    def log(self, *args):
+        if self.component:
+            self.component.log_info(*args)
+        else:
+            LOGGER.info(*args)
+
+    def create_component(self, main, match, background=False, **kwargs):
         max_length = settings.COMPONENT_NAME_LENGTH
 
         def get_val(key, extra=0):
@@ -126,20 +146,21 @@ class ComponentDiscovery(object):
                 result = result[:max_length - extra]
             return result
 
+        # Get name and slug
         name = get_val('name')
         slug = get_val('slug')
-        simple_keys = (
-            'project', 'branch', 'vcs', 'push_on_commit', 'license_url',
-            'license',
-        )
-        for key in simple_keys:
-            if key not in params:
-                params[key] = getattr(main, key)
-        if 'repo' not in params:
-            params['repo'] = main.get_repo_link_url()
 
-        components = Component.objects.filter(project=params['project'])
+        # Copy attributes from main component
+        for key in COPY_ATTRIBUTES:
+            if key not in kwargs and main is not None:
+                kwargs[key] = getattr(main, key)
 
+        # Fill in repository
+        if 'repo' not in kwargs:
+            kwargs['repo'] = main.get_repo_link_url()
+
+        # Deal with duplicate name or slug
+        components = Component.objects.filter(project=kwargs['project'])
         if components.filter(Q(slug=slug) | Q(name=name)).exists():
             base_name = get_val('name', 4)
             base_slug = get_val('slug', 4)
@@ -152,19 +173,24 @@ class ComponentDiscovery(object):
                     continue
                 break
 
-        if self.component:
-            self.component.log_info('Creating component %s', name)
-        else:
-            LOGGER.info('Creating component %s', name)
-        return Component.objects.create(
-            name=name,
-            slug=slug,
-            template=match['base_file'],
-            filemask=match['mask'],
-            file_format=self.file_format,
-            language_regex=self.language_re,
-            **params
-        )
+        # Fill in remaining attributes
+        kwargs.update({
+            'name': name,
+            'slug': slug,
+            'template': match['base_file'],
+            'filemask': match['mask'],
+            'file_format': self.file_format,
+            'language_regex': self.language_re,
+        })
+
+        self.log('Creating component %s', name)
+        if background:
+            # Can't pass objects, pass only IDs
+            kwargs['project'] = kwargs['project'].pk
+            create_component.delay(**kwargs)
+            return None
+
+        return Component.objects.create(**kwargs)
 
     def cleanup(self, main, processed, preview=False):
         deleted = []
@@ -188,7 +214,26 @@ class ComponentDiscovery(object):
 
         return deleted
 
-    def perform(self, preview=False, remove=False):
+    def check_valid(self, match):
+        def valid_file(name):
+            if not name:
+                return True
+            fullname = os.path.join(self.component.full_path, name)
+            return os.path.exists(fullname)
+
+        # Skip matches to main component
+        if match['mask'] == self.component.filemask:
+            return False
+
+        if not valid_file(match['base_file']):
+            return False
+
+        if not valid_file(match['new_base']):
+            return False
+
+        return True
+
+    def perform(self, preview=False, remove=False, background=False):
         created = []
         matched = []
         deleted = []
@@ -196,29 +241,36 @@ class ComponentDiscovery(object):
 
         main = self.component
 
-        with InvalidateContext():
-            for match in self.matched_components.values():
-                # Skip matches to main component
-                if match['mask'] == main.filemask:
-                    continue
+        for match in self.matched_components.values():
+            # Skip invalid matches
+            if not self.check_valid(match):
+                continue
 
-                try:
-                    found = main.get_linked_childs().filter(
-                        filemask=match['mask']
-                    )[0]
-                    # Component exists
-                    matched.append((match, found))
-                    processed.add(found.id)
-                except IndexError:
-                    # Create new component
-                    if preview:
-                        component = None
-                    else:
-                        component = self.create_component(main, match)
-                        processed.add(component.id)
-                    created.append((match, component))
+            try:
+                found = main.get_linked_childs().filter(
+                    filemask=match['mask']
+                )[0]
+                # Component exists
+                matched.append((match, found))
+                processed.add(found.id)
+            except IndexError:
+                # Create new component
+                component = None
+                if not preview:
+                    component = self.create_component(
+                        main, match, background
+                    )
+                if component:
+                    processed.add(component.id)
+                created.append((match, component))
 
-            if remove:
-                deleted = self.cleanup(main, processed, preview)
+        if remove:
+            deleted = self.cleanup(main, processed, preview)
 
         return created, matched, deleted
+
+
+@app.task
+def create_component(**kwargs):
+    kwargs['project'] = Project.objects.get(pk=kwargs['project'])
+    Component.objects.create(**kwargs)

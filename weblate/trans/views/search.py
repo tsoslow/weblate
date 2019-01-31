@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -22,7 +22,6 @@ from __future__ import unicode_literals
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.core.paginator import Paginator, EmptyPage
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.translation import ugettext as _, ungettext
@@ -33,17 +32,17 @@ from django.views.decorators.http import require_POST
 from weblate.utils.ratelimit import check_rate_limit
 from weblate.lang.models import Language
 from weblate.trans.forms import (
-    SiteSearchForm, ReplaceForm, ReplaceConfirmForm, MassStateForm,
+    SiteSearchForm, ReplaceForm, ReplaceConfirmForm, BulkStateForm,
 )
 from weblate.trans.models import Unit, Change
-from weblate.trans.views.helper import (
+from weblate.utils.views import (
     get_translation, get_component, get_project, import_message,
 )
 from weblate.trans.util import render
-from weblate.trans.views.helper import show_form_errors
+from weblate.utils.views import show_form_errors
 from weblate.utils import messages
 from weblate.utils.state import STATE_EMPTY
-from weblate.utils.views import get_page_limit
+from weblate.utils.views import get_paginator
 
 
 def parse_url(request, project, component=None, lang=None):
@@ -90,6 +89,11 @@ def search_replace(request, project, component=None, lang=None):
     updated = 0
     if matching.exists():
         confirm = ReplaceConfirmForm(matching, request.POST)
+        limited = False
+
+        if matching.count() > 300:
+            matching = matching.order_by('id')[:250]
+            limited = True
 
         if not confirm.is_valid():
             for unit in matching:
@@ -101,6 +105,7 @@ def search_replace(request, project, component=None, lang=None):
                 'search_query': search_text,
                 'replacement': replacement,
                 'form': form,
+                'limited': limited,
                 'confirm': ReplaceConfirmForm(matching),
             })
             return render(
@@ -199,16 +204,7 @@ def search(request, project=None, component=None, lang=None):
                 translation__language=context['language']
             )
 
-        page, limit = get_page_limit(request, 50)
-
-        paginator = Paginator(units, limit)
-
-        try:
-            units = paginator.page(page)
-        except EmptyPage:
-            # If page is out of range (e.g. 9999), deliver last page of
-            # results.
-            units = paginator.page(paginator.num_pages)
+        units = get_paginator(request, units)
 
         context['show_results'] = True
         context['page_obj'] = units
@@ -218,9 +214,12 @@ def search(request, project=None, component=None, lang=None):
         context['query_string'] = search_form.urlencode()
         context['search_query'] = search_form.cleaned_data['q']
     elif is_ratelimited:
-        messages.error(request, _('Too many search queries, please try again later.'))
+        messages.error(
+            request, _('Too many search queries, please try again later.')
+        )
     elif request.GET:
         messages.error(request, _('Invalid search query!'))
+        show_form_errors(request, search_form)
 
     return render(
         request,
@@ -238,7 +237,7 @@ def state_change(request, project, component=None, lang=None):
     if not request.user.has_perm('translation.auto', obj):
         raise PermissionDenied()
 
-    form = MassStateForm(request.user, obj, request.POST)
+    form = BulkStateForm(request.user, obj, request.POST)
 
     if not form.is_valid():
         messages.error(request, _('Failed to process form!'))
@@ -268,10 +267,10 @@ def state_change(request, project, component=None, lang=None):
 
     import_message(
         request, updated,
-        _('Mass state change completed, no strings were updated.'),
+        _('Bulk status change completed, no strings were updated.'),
         ungettext(
-            'Mass state change completed, %d string was updated.',
-            'Mass state change completed, %d strings were updated.',
+            'Bulk status change completed, %d string was updated.',
+            'Bulk status change completed, %d strings were updated.',
             updated
         )
     )

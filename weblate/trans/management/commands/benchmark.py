@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -24,6 +24,7 @@ import pstats
 from django.core.management.base import BaseCommand
 
 from weblate.trans.models import Component, Project
+from weblate.trans.search import Fulltext
 
 
 class Command(BaseCommand):
@@ -34,16 +35,24 @@ class Command(BaseCommand):
         super(Command, self).add_arguments(parser)
         parser.add_argument(
             '--profile-sort',
-            dest='profile_sort',
             default='cumulative',
             help='sort order for profile stats',
         )
         parser.add_argument(
+            '--profile-filter',
+            default='/weblate',
+            help='filter for profile stats',
+        )
+        parser.add_argument(
             '--profile-count',
             type=int,
-            dest='profile_count',
             default=20,
             help='number of profile stats to show',
+        )
+        parser.add_argument(
+            '--template',
+            default='',
+            help='template monolingual files',
         )
         parser.add_argument(
             'project',
@@ -59,6 +68,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        Fulltext.FAKE = True
         project = Project.objects.get(slug=options['project'])
         # Delete any possible previous tests
         Component.objects.filter(
@@ -72,10 +82,11 @@ class Command(BaseCommand):
             slug='benchmark',
             repo=options['repo'],
             filemask=options['mask'],
+            template=options['template'],
             project=project
         )
         stats = pstats.Stats(profiler, stream=self.stdout)
         stats.sort_stats(options['profile_sort'])
-        stats.print_stats(options['profile_count'])
+        stats.print_stats(options['profile_filter'], options['profile_count'])
         # Delete after testing
         component.delete()

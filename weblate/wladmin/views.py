@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -31,7 +31,6 @@ from weblate.vcs.ssh import (
 )
 from weblate.utils import messages
 from weblate.wladmin.models import ConfigurationError
-from weblate.wladmin.performance import run_checks as wl_run_checks
 
 
 def report(request, admin_site):
@@ -66,8 +65,7 @@ def performance(request, admin_site):
         return handle_dismiss(request)
 
     context = admin_site.each_context(request)
-    context['checks'] = wl_run_checks(request)
-    context['django_errors'] = run_checks(include_deployment_checks=True)
+    context['checks'] = run_checks(include_deployment_checks=True)
     context['errors'] = ConfigurationError.objects.filter(ignored=False)
 
     return render(
@@ -94,7 +92,11 @@ def ssh(request, admin_site):
 
     # Add host key
     if action == 'add-host':
-        add_host_key(request)
+        add_host_key(
+            request,
+            request.POST.get('host', ''),
+            request.POST.get('port', '')
+        )
 
     context = admin_site.each_context(request)
     context['public_key'] = key

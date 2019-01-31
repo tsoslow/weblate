@@ -22,9 +22,9 @@
 {% endif %}
 {% if changes.0.is_merge_failure %}
 <div class="alert alert-danger" role="alert">
-<p>{% trans "There has been a merge failure in the repository:" %}</p>
+<p>{% trans "There has been a merge failure in the repository" %}</p>
 <pre>{{ changes.0.target }}</pre>
-<p><a href="{% documentation "faq" "merge" %}">{% trans "Check the FAQ for information on how to resolve this." %}</a></p>
+<p><a href="{% documentation "faq" "merge" %}">{% trans "Check the FAQ for info on how to resolve this." %}</a></p>
 </div>
 {% else %}
 {% if object.repo_needs_merge %}
@@ -172,6 +172,18 @@
 <p class="helptext">{% trans "Reset all changes in the local repository" %}</p>
 </td>
 </tr>
+
+<tr>
+<td>
+<form method="POST" action="{{ object.get_cleanup_url }}">
+{% csrf_token %}
+<input type="submit" class="btn btn-default confirm-reset" value="{% trans "Cleanup" %}" />
+</form>
+</td>
+<td>
+<p class="helptext">{% trans "Cleanup all untracked files in the local repository" %}</p>
+</td>
+</tr>
 {% endif %}
 
 
@@ -202,21 +214,6 @@
 </tr>
 {% endif %}
 {% endif %}
-
-{% if translation and user_can_remove_translation %}
-<tr>
-<td>
-<form method="POST" action="{% url 'remove_translation' project=translation.component.project.slug component=translation.component.slug lang=translation.language.code %}">
-{% csrf_token %}
-<input type="submit" class="btn btn-danger" value="{% trans "Delete" %}" />
-</form>
-</td>
-<td>
-<p class="helptext">{% blocktrans %}Removes current translation from the repository.{% endblocktrans %}</p>
-</td>
-</tr>
-{% endif %}
-
 
 </table>
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -19,10 +19,8 @@
 #
 
 from django.shortcuts import render, get_object_or_404
-from django.http import (
-    HttpResponse, HttpResponseBadRequest, Http404, JsonResponse,
-)
-from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse, Http404, JsonResponse
+from django.core.exceptions import PermissionDenied, SuspiciousOperation
 from django.utils.encoding import force_text
 from django.utils.http import urlencode
 
@@ -30,7 +28,9 @@ from weblate.checks.models import Check
 from weblate.screenshots.forms import ScreenshotForm
 from weblate.trans.models import Unit, Change
 from weblate.machinery import MACHINE_TRANSLATION_SERVICES
-from weblate.trans.views.helper import (
+from weblate.machinery.base import MachineTranslationError
+from weblate.utils.errors import report_error
+from weblate.utils.views import (
     get_project, get_component, get_translation
 )
 from weblate.trans.forms import PriorityForm, CheckFlagsForm, ContextForm
@@ -40,19 +40,17 @@ from weblate.utils.hash import checksum_to_hash
 from weblate.trans.util import sort_objects
 
 
-def translate(request, unit_id):
+def translate(request, unit_id, service):
     """AJAX handler for translating."""
     unit = get_object_or_404(Unit, pk=int(unit_id))
     request.user.check_access(unit.translation.component.project)
     if not request.user.has_perm('machinery.view', unit.translation):
         raise PermissionDenied()
 
-    service_name = request.GET.get('service', 'INVALID')
+    if service not in MACHINE_TRANSLATION_SERVICES:
+        raise SuspiciousOperation('Invalid service specified')
 
-    if service_name not in MACHINE_TRANSLATION_SERVICES:
-        return HttpResponseBadRequest('Invalid service specified')
-
-    translation_service = MACHINE_TRANSLATION_SERVICES[service_name]
+    translation_service = MACHINE_TRANSLATION_SERVICES[service]
 
     # Error response
     response = {
@@ -69,10 +67,12 @@ def translate(request, unit_id):
             unit.translation.language.code,
             unit.get_source_plurals()[0],
             unit,
-            request.user
+            request
         )
         response['responseStatus'] = 200
     except Exception as exc:
+        if not isinstance(exc, MachineTranslationError):
+            report_error(exc, request)
         response['responseDetails'] = '{0}: {1}'.format(
             exc.__class__.__name__,
             str(exc)
@@ -93,7 +93,9 @@ def get_unit_changes(request, unit_id):
         'js/changes.html',
         {
             'last_changes': unit.change_set.all()[:10],
-            'last_changes_url': urlencode(unit.translation.get_kwargs()),
+            'last_changes_url': urlencode(
+                unit.translation.get_reverse_url_kwargs()
+            ),
         }
     )
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -19,6 +19,7 @@
 #
 
 from io import BytesIO
+import gettext
 import os
 import re
 import sys
@@ -32,8 +33,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email as validate_email_django
 from django.utils.translation import ugettext as _
 
-from weblate.utils.render import render_template
-
 
 USERNAME_MATCHER = re.compile(r'^[\w@+-][\w.@+-]*$')
 
@@ -43,6 +42,10 @@ EMAIL_BLACKLIST = re.compile(r'^([./|]|.*([@%!`#&?]|/\.\./))')
 ALLOWED_IMAGES = frozenset((
     'image/jpeg',
     'image/png',
+    # Not sure if supporting apng is reasonable, but PNG is currently
+    # detected as apng by Pillow, see
+    # https://github.com/python-pillow/Pillow/pull/3525
+    'image/apng',
 ))
 
 # List of schemes not allowed in editor URL
@@ -214,16 +217,6 @@ def validate_file_extension(value):
     return value
 
 
-def validate_render(value, **kwargs):
-    """Validates rendered template."""
-    try:
-        render_template(value, **kwargs)
-    except Exception as err:
-        raise ValidationError(
-            _('Failed to render template: {}').format(err)
-        )
-
-
 def validate_username(value):
     if value.startswith('.'):
         raise ValidationError(
@@ -243,3 +236,12 @@ def validate_email(value):
         raise ValidationError(_('Enter a valid email address.'))
     if not re.match(settings.REGISTRATION_EMAIL_MATCH, value):
         raise ValidationError(_('This email address is not allowed.'))
+
+
+def validate_pluraleq(value):
+    try:
+        gettext.c2py(value if value else '0')
+    except ValueError as error:
+        raise ValidationError(
+            _('Failed to evaluate plural equation: {}').format(error)
+        )

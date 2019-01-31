@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -20,9 +20,13 @@
 #
 
 import os
+import sys
 
 if __name__ == "__main__":
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "weblate.settings")
+    default = "weblate.settings"
+    if len(sys.argv) >= 2 and sys.argv[1] == "test":
+        default = "weblate.settings_test"
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", default)
 
     from weblate.runner import main
 

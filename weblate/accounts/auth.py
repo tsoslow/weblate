@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -52,6 +52,13 @@ class WeblateUserBackend(ModelBackend):
         except (User.DoesNotExist, User.MultipleObjectsReturned):
             pass
         return None
+
+    def get_user(self, user_id):
+        try:
+            user = User.objects.select_related('profile').get(pk=user_id)
+        except User.DoesNotExist:
+            return None
+        return user if self.user_can_authenticate(user) else None
 
 
 @receiver(pre_save, sender=User)

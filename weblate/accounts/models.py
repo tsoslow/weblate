@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -292,7 +292,11 @@ class Profile(models.Model):
         Language,
         verbose_name=_('Translated languages'),
         blank=True,
-        help_text=_('Choose languages to which you can translate.')
+        help_text=_(
+            'Choose which languages you prefer to translate. '
+            'These will be offered to you on the dashboard to '
+            'have easier access to chosen translations.'
+        )
     )
     secondary_languages = models.ManyToManyField(
         Language,
@@ -306,6 +310,7 @@ class Profile(models.Model):
     )
     suggested = models.IntegerField(default=0, db_index=True)
     translated = models.IntegerField(default=0, db_index=True)
+    uploaded = models.IntegerField(default=0, db_index=True)
 
     hide_completed = models.BooleanField(
         verbose_name=_('Hide completed translations on the dashboard'),
@@ -331,6 +336,16 @@ class Profile(models.Model):
             ' is good option.'
         ),
         validators=[validate_editor],
+    )
+    TRANSLATE_FULL = 0
+    TRANSLATE_ZEN = 1
+    translate_mode = models.IntegerField(
+        verbose_name=_('Translation editor mode'),
+        choices=(
+            (TRANSLATE_FULL, _('Full editor')),
+            (TRANSLATE_ZEN, _('Zen mode')),
+        ),
+        default=TRANSLATE_FULL,
     )
     special_chars = models.CharField(
         default='', blank=True,
@@ -450,14 +465,6 @@ class Profile(models.Model):
         return reverse('user_page', kwargs={'user': self.user.username})
 
     @property
-    def last_change(self):
-        """Return date of last change user has done in Weblate."""
-        try:
-            return self.user.change_set.values_list('timestamp', flat=True)[0]
-        except IndexError:
-            return None
-
-    @property
     def full_name(self):
         """Return user's full name."""
         return self.user.full_name
@@ -504,9 +511,6 @@ def post_login_handler(sender, request, user, **kwargs):
     if is_email_auth and not user.has_usable_password():
         request.session['show_set_password'] = True
 
-    # Ensure user has a profile
-    profile = Profile.objects.get_or_create(user=user)[0]
-
     # Migrate django-registration based verification to python-social-auth
     # and handle external authentication such as LDAP
     if (is_email_auth and user.has_usable_password() and user.email and
@@ -521,7 +525,7 @@ def post_login_handler(sender, request, user, **kwargs):
         )
 
     # Set language for session based on preferences
-    set_lang(request, profile)
+    set_lang(request, user.profile)
 
     # Fixup accounts with empty name
     if not user.full_name:
@@ -545,9 +549,6 @@ def create_profile_callback(sender, instance, created=False, **kwargs):
     """Automatically create token and profile for user."""
     if created:
         # Create API token
-        Token.objects.create(
-            user=instance,
-            key=get_random_string(40),
-        )
+        Token.objects.create(user=instance, key=get_random_string(40))
         # Create profile
-        Profile.objects.get_or_create(user=instance)
+        Profile.objects.create(user=instance)

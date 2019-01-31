@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -93,6 +93,7 @@ class PoExporterTest(TestCase):
                 component=component,
                 plural=plural,
             ),
+            id_hash=-1,
             **kwargs
         )
         exporter = self.get_exporter(lang)

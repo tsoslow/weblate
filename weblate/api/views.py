@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -47,20 +47,21 @@ from weblate.auth.models import User
 from weblate.checks.models import Check
 from weblate.formats.exporters import EXPORTERS
 from weblate.trans.models import (
-    Project, Component, Translation, Change, Unit, Source,
-    IndexUpdate, Suggestion,
+    Project, Component, Translation, Change, Unit, Source, Suggestion,
 )
 from weblate.trans.stats import get_project_stats
 from weblate.lang.models import Language
 from weblate.screenshots.models import Screenshot
-from weblate.trans.views.helper import download_translation_file
-from weblate.utils.state import STATE_TRANSLATED
+from weblate.utils.views import download_translation_file
+from weblate.utils.celery import get_queue_length
+from weblate.utils.stats import GlobalStats
 from weblate.utils.docs import get_doc_url
 
 REPO_OPERATIONS = {
     'push': ('vcs.push', 'do_push', ()),
     'pull': ('vcs.update', 'do_update', ()),
     'reset': ('vcs.reset', 'do_reset', ()),
+    'cleanup': ('vcs.reset', 'do_cleanup', ()),
     'commit': ('vcs.commit', 'commit_pending', ('api',)),
 }
 
@@ -80,9 +81,9 @@ def get_view_description(view_cls, html=False):
     description = view_cls.__doc__ or ''
     description = formatting.dedent(smart_text(description))
 
-    if hasattr(view_cls, 'serializer_class'):
+    if hasattr(getattr(view_cls, 'serializer_class', 'None'), 'Meta'):
         doc_url = get_doc_url(
-            'api'
+            'api',
             '{0}s'.format(
                 view_cls.serializer_class.Meta.model.__name__.lower()
             )
@@ -286,7 +287,7 @@ class ProjectViewSet(WeblateViewSet):
     def changes(self, request, **kwargs):
         obj = self.get_object()
 
-        queryset = Change.objects.for_project(obj)
+        queryset = Change.objects.prefetch().filter(project=obj)
         page = self.paginate_queryset(queryset)
 
         serializer = ChangeSerializer(
@@ -390,7 +391,7 @@ class ComponentViewSet(MultipleFieldMixin, WeblateViewSet):
     def changes(self, request, **kwargs):
         obj = self.get_object()
 
-        queryset = Change.objects.for_component(obj)
+        queryset = Change.objects.prefetch().filter(component=obj)
         page = self.paginate_queryset(queryset)
 
         serializer = ChangeSerializer(
@@ -434,11 +435,12 @@ class TranslationViewSet(MultipleFieldMixin, WeblateViewSet):
     )
     def file(self, request, **kwargs):
         obj = self.get_object()
+        user = request.user
         if request.method == 'GET':
             fmt = self.format_kwarg or request.query_params.get('format')
             return download_translation_file(obj, fmt)
 
-        if (not request.user.has_perm('upload.perform', obj) or
+        if (not user.has_perm('upload.perform', obj) or
                 obj.component.locked):
             raise PermissionDenied()
 
@@ -447,15 +449,35 @@ class TranslationViewSet(MultipleFieldMixin, WeblateViewSet):
 
         serializer = UploadRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
-        if (serializer.validated_data['overwrite'] and
-                not request.user.has_perm('upload.overwrite', obj)):
+        if data['overwrite'] and not user.has_perm('upload.overwrite', obj):
             raise PermissionDenied()
+
+        if (not user.has_perm('unit.edit', obj) and
+                data['method'] in ('translate', 'fuzzy')):
+            raise PermissionDenied()
+        if (not user.has_perm('suggestion.add', obj) and
+                data['method'] == 'suggest'):
+            raise PermissionDenied()
+        if (not user.has_perm('unit.review', obj) and
+                data['method'] == 'approve'):
+            raise PermissionDenied()
+
+        author_name = None
+        author_email = None
+        if request.user.has_perm('upload.authorship', obj):
+            author_name = data.get('author_name')
+            author_email = data.get('author_email')
 
         not_found, skipped, accepted, total = obj.merge_upload(
             request,
-            serializer.validated_data['file'],
-            serializer.validated_data['overwrite'],
+            data['file'],
+            data['overwrite'],
+            author_name,
+            author_email,
+            data['method'],
+            data['fuzzy'],
         )
 
         return Response(data={
@@ -483,7 +505,7 @@ class TranslationViewSet(MultipleFieldMixin, WeblateViewSet):
     def changes(self, request, **kwargs):
         obj = self.get_object()
 
-        queryset = Change.objects.for_translation(obj)
+        queryset = Change.objects.prefetch().filter(translation=obj)
         page = self.paginate_queryset(queryset)
 
         serializer = ChangeSerializer(
@@ -613,21 +635,21 @@ class Metrics(APIView):
         """
         Return a list of all users.
         """
+        stats = GlobalStats()
+
         return Response({
-            'units': Unit.objects.count(),
-            'units_translated': Unit.objects.filter(
-                state=STATE_TRANSLATED
-            ).count(),
+            'units': stats.all,
+            'units_translated': stats.translated,
             'users': User.objects.count(),
             'changes': Change.objects.count(),
             'projects': Project.objects.count(),
             'components': Component.objects.count(),
             'translations': Translation.objects.count(),
-            'languages': Language.objects.filter(
-                translation__pk__gt=0
-            ).distinct().count(),
+            'languages': stats.languages,
             'checks': Check.objects.count(),
             'suggestions': Suggestion.objects.count(),
-            'index_updates': IndexUpdate.objects.count(),
+            'index_updates': get_queue_length('search'),
+            'celery_queue': get_queue_length(),
+            'celery_memory_queue': get_queue_length('memory'),
             'name': settings.SITE_TITLE,
         })

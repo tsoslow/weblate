@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -62,7 +62,7 @@ class YandexTranslation(MachineTranslation):
         """Check whether given language combination is supported."""
         return (source, language) in self.supported_languages
 
-    def download_translations(self, source, language, text, unit, user):
+    def download_translations(self, source, language, text, unit, request):
         """Download list of possible translations from a service."""
         response = self.json_req(
             'https://translate.yandex.net/api/v1.5/tr.json/translate',

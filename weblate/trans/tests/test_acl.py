@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -245,10 +245,25 @@ class ACLTest(FixtureTestCase):
             billing = Billing.objects.create(plan=plan)
             billing.projects.add(self.project)
 
+        # Editing should now work, but components do not have a license
+        response = self.client.post(
+            url,
+            {'access_control': Project.ACCESS_PROTECTED},
+            follow=True
+        )
+        self.assertRedirects(response, self.access_url)
+        self.assertContains(
+            response, 'You must specify a license for these components'
+        )
+
+        # Set component license
+        self.project.component_set.update(license='Test license')
+
         # Editing should now work
         response = self.client.post(
             url,
-            {'access_control': Project.ACCESS_PROTECTED}
+            {'access_control': Project.ACCESS_PROTECTED},
+            follow=True
         )
         self.assertRedirects(response, self.access_url)
 
@@ -274,14 +289,14 @@ class ACLTest(FixtureTestCase):
         self.project.enable_review = True
         self.project.save()
         self.assertEqual(
-            8 + billing_group,
+            9 + billing_group,
             Group.objects.filter(name__startswith=match).count()
         )
         self.project.access_control = Project.ACCESS_PRIVATE
         self.project.enable_review = True
         self.project.save()
         self.assertEqual(
-            8 + billing_group,
+            9 + billing_group,
             Group.objects.filter(name__startswith=match).count()
         )
         self.project.access_control = Project.ACCESS_CUSTOM
@@ -297,7 +312,7 @@ class ACLTest(FixtureTestCase):
         self.project.access_control = Project.ACCESS_PRIVATE
         self.project.save()
         self.assertEqual(
-            8 + billing_group,
+            9 + billing_group,
             Group.objects.filter(name__startswith=match).count()
         )
         self.project.delete()

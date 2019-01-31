@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -21,21 +21,22 @@
 
 from __future__ import unicode_literals
 
-import sys
+from hashlib import md5
 import json
+import random
 
 from six.moves.urllib.request import Request, urlopen
 from six.moves.urllib.error import HTTPError
 
 from django.core.cache import cache
-from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.http import urlencode
 
 from weblate import USER_AGENT
 from weblate.logger import LOGGER
 from weblate.utils.errors import report_error
-from weblate.utils.hash import calculate_hash, hash_to_checksum
+from weblate.utils.hash import calculate_hash
+from weblate.utils.search import Comparer
 from weblate.utils.site import get_site_url
 
 
@@ -54,6 +55,7 @@ class MachineTranslation(object):
     rank_boost = 0
     default_languages = []
     cache_translations = True
+    language_map = {}
 
     @classmethod
     def get_rank(cls):
@@ -66,6 +68,9 @@ class MachineTranslation(object):
         self.languages_cache = '{}-languages'.format(self.mtid)
         self.request_url = None
         self.request_params = None
+        self.comparer = Comparer()
+        self.supported_languages = None
+        self.supported_languages_error = None
 
     def delete_cache(self):
         cache.delete_many([self.rate_limit_cache, self.languages_cache])
@@ -78,13 +83,24 @@ class MachineTranslation(object):
         return
 
     def json_req(self, url, http_post=False, skip_auth=False, raw=False,
-                 **kwargs):
+                 json_body=False, **kwargs):
         """Perform JSON request."""
+
+        # JSON body requires using POST
+        if json_body:
+            http_post = True
+
         # Encode params
         if kwargs:
-            params = urlencode(kwargs)
+            if json_body:
+                params = json.dumps(kwargs)
+            else:
+                params = urlencode(kwargs)
         else:
-            params = ''
+            if json_body:
+                params = '{}'
+            else:
+                params = ''
 
         # Store for exception handling
         self.request_url = url
@@ -96,7 +112,6 @@ class MachineTranslation(object):
 
         # Create request object with custom headers
         request = Request(url)
-        request.timeout = 0.5
         request.add_header('User-Agent', USER_AGENT)
         request.add_header('Referer', get_site_url())
         # Optional authentication
@@ -105,9 +120,9 @@ class MachineTranslation(object):
 
         # Fire request
         if http_post:
-            handle = urlopen(request, params.encode('utf-8'))
+            handle = urlopen(request, params.encode('utf-8'), timeout=5.0)
         else:
-            handle = urlopen(request)
+            handle = urlopen(request, timeout=5.0)
 
         # Read and possibly convert response
         text = handle.read()
@@ -151,7 +166,7 @@ class MachineTranslation(object):
         """Download list of supported languages from a service."""
         return []
 
-    def download_translations(self, source, language, text, unit, user):
+    def download_translations(self, source, language, text, unit, request):
         """Download list of possible translations from a service.
 
         Should return tuple - (translation text, translation quality, source of
@@ -165,52 +180,51 @@ class MachineTranslation(object):
 
     def convert_language(self, language):
         """Convert language to service specific code."""
+        if language in self.language_map:
+            return self.language_map[language]
+
         return language
 
-    def report_error(self, exc, message):
+    def report_error(self, exc, request, message):
         """Wrapper for handling error situations"""
-        report_error(
-            exc, sys.exc_info(),
-            {'mt_url': self.request_url, 'mt_params': self.request_params}
-        )
-        LOGGER.error(
-            message,
-            self.name,
-        )
-        LOGGER.error(
-            'Last fetched URL: %s, params: %s',
-            self.request_url,
-            self.request_params,
+        extra = {'mt_url': self.request_url, 'mt_params': self.request_params}
+        report_error(exc, request, extra)
+        LOGGER.error(message, self.name)
+        LOGGER.info(
+            'Last URL: %s, params: %s', extra['mt_url'], extra['mt_params']
         )
 
-    @property
-    def supported_languages(self):
+    def get_supported_languages(self, request):
         """Return list of supported languages."""
+        if self.supported_languages is not None:
+            return
 
         # Try using list from cache
         languages = cache.get(self.languages_cache)
         if languages is not None:
-            return languages
+            self.supported_languages = languages
+            return
 
         if self.is_rate_limited():
-            return []
+            self.supported_languages = []
+            return
 
         # Download
         try:
             languages = set(self.download_languages())
         except Exception as exc:
+            self.supported_languages = self.default_languages
+            self.supported_languages_error = exc
             self.report_error(
-                exc,
+                exc, request,
                 'Failed to fetch languages from %s, using defaults',
             )
-            if settings.DEBUG:
-                raise
-            return self.default_languages
+            return
 
         # Update cache
         cache.set(self.languages_cache, languages, 3600 * 48)
 
-        return languages
+        self.supported_languages = languages
 
     def is_supported(self, source, language):
         """Check whether given language combination is supported."""
@@ -231,49 +245,61 @@ class MachineTranslation(object):
             return False
         # Apply rate limiting for following status codes:
         # HTTP 429 Too Many Requests
+        # HTTP 401 Unauthorized
         # HTTP 403 Forbidden
         # HTTP 503 Service Unavailable
-        if exc.code in (429, 403, 503):
+        if exc.code in (429, 401, 403, 503):
             return True
         return False
 
-    def translate(self, language, text, unit, user):
-        """Return list of machine translations."""
-        if text == '':
-            return []
-
-        if self.is_rate_limited():
-            return []
-
-        language = self.convert_language(language)
-        source = self.convert_language(
-            unit.translation.component.project.source_language.code
+    def translate_cache_key(self, source, language, text):
+        if not self.cache_translations:
+            return None
+        return 'mt:{}:{}:{}'.format(
+            self.mtid,
+            calculate_hash(source, language),
+            calculate_hash(None, text),
         )
+
+    def translate(self, language, text, unit, request, source=None):
+        """Return list of machine translations."""
+
+        self.get_supported_languages(request)
+
+        if source is None:
+            language = self.convert_language(language)
+            source = self.convert_language(
+                unit.translation.component.project.source_language.code
+            )
+
+        if not text or self.is_rate_limited() or source == language:
+            return []
+
         if not self.is_supported(source, language):
             # Try without country code
-            if '_' in language or '-' in language:
-                language = language.replace('-', '_').split('_')[0]
-                if source == language:
-                    return []
-                if not self.is_supported(source, language):
-                    return []
-            else:
-                return []
+            source = source.replace('-', '_')
+            if '_' in source:
+                source = source.split('_')[0]
+                return self.translate(language, text, unit, request, source)
+            language = language.replace('-', '_')
+            if '_' in language:
+                language = language.split('_')[0]
+                return self.translate(language, text, unit, request, source)
+            if self.supported_languages_error:
+                raise MachineTranslationError(
+                    repr(self.supported_languages_error)
+                )
+            return []
 
-        cache_key = None
-        if self.cache_translations:
-            cache_key = 'mt:{}:{}:{}'.format(
-                self.mtid,
-                calculate_hash(source, language),
-                hash_to_checksum(calculate_hash(None, text)),
-            )
+        cache_key = self.translate_cache_key(source, language, text)
+        if cache_key:
             result = cache.get(cache_key)
             if result is not None:
                 return result
 
         try:
             translations = self.download_translations(
-                source, language, text, unit, user
+                source, language, text, unit, request
             )
 
             result = [
@@ -293,10 +319,20 @@ class MachineTranslation(object):
                 self.set_rate_limit()
 
             self.report_error(
-                exc,
+                exc, request,
                 'Failed to fetch translations from %s',
             )
             raise MachineTranslationError('{0}: {1}'.format(
                 exc.__class__.__name__,
                 str(exc)
             ))
+
+    def signed_salt(self, appid, secret, text):
+        """Generates salt and sign as used by Chinese services."""
+
+        salt = str(random.randint(0, 10000000000))
+
+        payload = ''.join((appid, text, salt, secret))
+        digest = md5(payload.encode('utf-8')).hexdigest()
+
+        return salt, digest

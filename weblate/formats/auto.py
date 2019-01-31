@@ -1,7 +1,7 @@
 
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -22,26 +22,23 @@
 
 from __future__ import unicode_literals
 
-from io import BytesIO
 import os.path
 
 from django.utils.translation import ugettext_lazy as _
 
 from translate.storage import factory
 
-from weblate.formats.base import FileFormat
-from weblate.formats.helpers import StringIOMode
+from weblate.formats.ttkit import TTKitFormat
+from weblate.formats.helpers import BytesIOMode
 from weblate.formats.models import FILE_FORMATS
 
 
 def detect_filename(filename):
     """Filename based format autodetection"""
     name = os.path.basename(filename)
-    for autoload, storeclass in FILE_FORMATS.autoload:
-        if not isinstance(autoload, tuple) and name.endswith(autoload):
-            return storeclass
-        elif (name.startswith(autoload[0]) and
-              name.endswith(autoload[1])):
+    for pattern, storeclass in FILE_FORMATS.autoload:
+        if ((not isinstance(pattern, tuple) and name.endswith(pattern)) or
+                (name.startswith(pattern[0]) and name.endswith(pattern[1]))):
             return storeclass
     return None
 
@@ -57,7 +54,7 @@ def try_load(filename, content, original_format, template_store):
         if file_format.monolingual in (True, None) and template_store:
             try:
                 result = file_format.parse(
-                    StringIOMode(filename, content),
+                    BytesIOMode(filename, content),
                     template_store
                 )
                 # Skip if there is not translated unit
@@ -69,20 +66,20 @@ def try_load(filename, content, original_format, template_store):
                 failure = error
         if file_format.monolingual in (False, None):
             try:
-                return file_format.parse(StringIOMode(filename, content))
+                return file_format.parse(BytesIOMode(filename, content))
             except Exception as error:
                 failure = error
 
     raise failure
 
 
-class AutoFormat(FileFormat):
+class AutoFormat(TTKitFormat):
     name = _('Automatic detection')
     format_id = 'auto'
 
     @classmethod
     def parse(cls, storefile, template_store=None, language_code=None):
-        """Parse store and returns FileFormat instance.
+        """Parse store and returns TTKitFormat instance.
 
         First attempt own autodetection, then fallback to ttkit.
         """

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -78,6 +78,12 @@ class WeblateAdminSite(AdminSite):
     site_title = _('Weblate administration')
     index_template = 'admin/weblate-index.html'
 
+    @property
+    def site_url(self):
+        if settings.URL_PREFIX:
+            return settings.URL_PREFIX
+        return '/'
+
     def discover(self):
         """Manual discovery."""
         # Accounts
@@ -103,7 +109,7 @@ class WeblateAdminSite(AdminSite):
         self.register(ContributorAgreement, ContributorAgreementAdmin)
 
         # Show some controls only in debug mode
-        if settings.DEBUG and False:
+        if settings.DEBUG:
             self.register(Translation, TranslationAdmin)
             self.register(Unit, UnitAdmin)
             self.register(Suggestion, SuggestionAdmin)
@@ -113,16 +119,25 @@ class WeblateAdminSite(AdminSite):
             self.register(Change, ChangeAdmin)
             self.register(Source, SourceAdmin)
 
-        # Billing
-        if 'weblate.billing' in settings.INSTALLED_APPS:
-            # pylint: disable=wrong-import-position
-            from weblate.billing.admin import (
-                PlanAdmin, BillingAdmin, InvoiceAdmin,
-            )
-            from weblate.billing.models import Plan, Billing, Invoice
-            self.register(Plan, PlanAdmin)
-            self.register(Billing, BillingAdmin)
-            self.register(Invoice, InvoiceAdmin)
+        if settings.BILLING_ADMIN:
+            # Billing
+            if 'weblate.billing' in settings.INSTALLED_APPS:
+                # pylint: disable=wrong-import-position
+                from weblate.billing.admin import (
+                    PlanAdmin, BillingAdmin, InvoiceAdmin,
+                )
+                from weblate.billing.models import Plan, Billing, Invoice
+                self.register(Plan, PlanAdmin)
+                self.register(Billing, BillingAdmin)
+                self.register(Invoice, InvoiceAdmin)
+
+            # Hosted
+            if 'wlhosted' in settings.INSTALLED_APPS:
+                # pylint: disable=wrong-import-position
+                from wlhosted.payments.admin import CustomerAdmin, PaymentAdmin
+                from wlhosted.payments.models import Customer, Payment
+                self.register(Customer, CustomerAdmin)
+                self.register(Payment, PaymentAdmin)
 
         # Legal
         if 'weblate.legal' in settings.INSTALLED_APPS:
@@ -142,6 +157,12 @@ class WeblateAdminSite(AdminSite):
         # Django core
         self.register(Site, SiteAdmin)
 
+        # Simple SSO
+        if 'simple_sso.sso_server' in settings.INSTALLED_APPS:
+            from simple_sso.sso_server.server import ConsumerAdmin
+            from simple_sso.sso_server.models import Consumer
+            self.register(Consumer, ConsumerAdmin)
+
     @never_cache
     def logout(self, request, extra_context=None):
         if request.method == 'POST':
@@ -156,7 +177,7 @@ class WeblateAdminSite(AdminSite):
 
     def each_context(self, request):
         result = super(WeblateAdminSite, self).each_context(request)
-        empty = [_('Object listing disabled')]
+        empty = [_('Object listing turned off')]
         result['empty_selectable_objects_list'] = [empty]
         result['empty_objects_list'] = empty
         result['configuration_errors'] = ConfigurationError.objects.filter(

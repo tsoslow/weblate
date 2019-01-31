@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -111,11 +111,8 @@ def filter_lines(lines):
             if quality > lastquality:
                 # Replace lower quality with new one
                 result.pop()
-            elif lastquality > quality:
+            elif lastquality > quality or quality < 4:
                 # Drop lower quality one
-                continue
-            elif quality < 4:
-                # Drop one of lower quality items
                 continue
 
         result.append(line)

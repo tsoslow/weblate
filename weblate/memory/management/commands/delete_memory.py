@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -38,6 +38,10 @@ class Command(BaseCommand):
             help='Origin to remove',
         )
         parser.add_argument(
+            '--category',
+            help='Category to remove',
+        )
+        parser.add_argument(
             '--all',
             action='store_true',
             help='Remove all entries',
@@ -49,7 +53,7 @@ class Command(BaseCommand):
         memory = TranslationMemory()
         if options['all']:
             memory.empty()
-        elif options['origin']:
-            memory.delete(options['origin'])
+        elif options['origin'] or options['category']:
+            memory.delete(options['origin'], options['category'])
         else:
             raise CommandError('Please specify what you want to delete')

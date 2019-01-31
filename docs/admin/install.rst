@@ -3,24 +3,30 @@
 Installation instructions
 =========================
 
+Looking for quick installation instructions? See :doc:`admin/quick`.
+
 Hardware requirements
 ---------------------
 
-Weblate should run on any contemporary hardware without problems, the following is
-the minimal configuration required to run Weblate on single host (Weblate, database
+Weblate should run on all contemporary hardware without problems, the following is
+the minimal configuration required to run Weblate on a single host (Weblate, database
 and web server):
 
-* 1 GB of RAM memory
+* 2 GB of RAM
 * 2 CPU cores
 * 1 GB of storage space
 
-The more memory you have, the better - it will be used for caching on all
+The more memory you have, the better - it is used for caching on all
 levels (filesystem, database and Weblate).
+
+Many concurrent users increases the amount of needed CPU cores.
+For hundreds of translation components at least 4 GB of RAM is
+recommended.
 
 .. note::
 
-    The actual requirements for your installation heavily vary based on the size of
-    translations managed by Weblate.
+    Actual requirements for your installation of Weblate vary heavily based on the size of
+    the translations managed in it.
 
 .. _requirements:
 
@@ -33,83 +39,93 @@ Python dependencies
 +++++++++++++++++++
 
 Weblate is written in `Python <https://www.python.org/>`_ and supports Python
-2.7, 3.4 or newer. The following dependencies can be installed using pip or your
-distribution packages:
-    
-Django (>= 1.11)
+2.7, 3.4 or newer. The following dependencies can be installed using pip or from
+your distribution packages:
+
+``Django`` (>= 1.11)
     https://www.djangoproject.com/
-siphashc (>= 0.8)
+``Celery`` (>= 4.0)
+    http://www.celeryproject.org/
+``celery-batches`` (>= 0.2)
+    https://pypi.org/project/celery-batches/
+``siphashc`` (>= 0.8)
     https://github.com/WeblateOrg/siphashc
-translate-toolkit (>= 2.3.0)
-    http://toolkit.translatehouse.org/
-Six (>= 1.7.0)
+``translate-toolkit`` (>= 2.3.1)
+    https://toolkit.translatehouse.org/
+``translation-finder`` (>=1.0)
+    https://github.com/WeblateOrg/translation-finder
+``diff-match-patch`` (>=20121119)
+    https://github.com/diff-match-patch-python/diff-match-patch
+``Six`` (>= 1.7.0)
     https://pypi.org/project/six/
-filelock (>= 3.0.1)
+``filelock`` (>= 3.0.1)
     https://github.com/benediktschmitt/py-filelock
-Mercurial (>= 2.8) (optional for Mercurial repositories support)
+``Mercurial`` (>= 2.8) (optional for Mercurial repositories support)
     https://www.mercurial-scm.org/
-social-auth-core (>= 1.3.0)
+``social-auth-core`` (>= 1.3.0)
     https://python-social-auth.readthedocs.io/
-social-auth-app-django (>= 1.2.0)
+``social-auth-app-django`` (>= 2.0.0)
     https://python-social-auth.readthedocs.io/
-django-appconf (>= 1.0)
+``django-appconf`` (>= 1.0)
     https://github.com/django-compressor/django-appconf
-Whoosh (>= 2.7.0)
+``Whoosh`` (>= 2.7.0)
     https://bitbucket.org/mchaput/whoosh/wiki/Home
-PIL or Pillow library
+``PIL`` or ``Pillow`` library
     https://python-pillow.org/
-lxml (>= 3.1.0)
-    http://lxml.de/
-defusedxml (>= 0.4)
+``lxml`` (>= 3.1.0)
+    https://lxml.de/
+``defusedxml`` (>= 0.4)
     https://bitbucket.org/tiran/defusedxml
-dateutil
+``dateutil``
     https://labix.org/python-dateutil
-django_compressor (>= 2.1.1)
+``django_compressor`` (>= 2.1.1)
     https://github.com/django-compressor/django-compressor
-django-crispy-forms (>= 1.6.1)
+``django-crispy-forms`` (>= 1.6.1)
     https://django-crispy-forms.readthedocs.io/
-Django REST Framework (>=3.8)
-    http://www.django-rest-framework.org/
-user-agents (>= 1.1.0)
+``Django REST Framework`` (>=3.8)
+    https://www.django-rest-framework.org/
+``user-agents`` (>= 1.1.0)
     https://github.com/selwin/python-user-agents
-pyuca (>= 1.1) (optional for proper sorting of strings)
+``pyuca`` (>= 1.1) (optional for proper sorting of strings)
     https://github.com/jtauber/pyuca
-Babel (optional for Android resources support)
-    http://babel.pocoo.org/
-phply (optional for PHP support)
+``phply`` (optional for PHP support)
     https://github.com/viraptor/phply
 Database backend
     Any database supported in Django will work, see :ref:`database-setup` and
     backends documentation for more details.
-pytz (optional, but recommended by Django)
+``pytz`` (optional, but recommended by Django)
     https://pypi.org/project/pytz/
-python-bidi (optional for proper rendering of badges in RTL languages)
+``python-bidi`` (optional for proper rendering of badges in RTL languages)
     https://github.com/MeirKriheli/python-bidi
-tesserocr (>= 2.0.0) (optional for screenshots OCR)
+``tesserocr`` (>= 2.0.0) (optional for screenshots OCR)
     https://github.com/sirfz/tesserocr
-akismet (>= 1.0) (optional for suggestion spam protection)
+``akismet`` (>= 1.0) (optional for suggestion spam protection)
     https://github.com/ubernostrum/akismet
-PyYAML (>= 3.0) (optional for :ref:`yaml`)
+``PyYAML`` (>= 3.0) (optional for :ref:`yaml`)
     https://pyyaml.org/
-jellyfish (>= 0.6.1)
+``backports.csv`` (needed on Python 2.7)
+    https://pypi.org/project/backports.csv/
+``Jellyfish`` (>= 0.6.1)
     https://github.com/jamesturk/jellyfish
-openpyxl (>=2.5.0) (for XLSX export/import)
+``openpyxl`` (>=2.5.0) (for XLSX export/import)
     https://openpyxl.readthedocs.io/en/stable/
+``Zeep`` (>=3.0.0) (optional for :ref:`ms-terminology`)
+    https://python-zeep.readthedocs.io/
 
 Other system requirements
 +++++++++++++++++++++++++
 
 The following dependencies have to be installed on the system:
 
-Git (>= 1.6)
+``Git`` (>= 1.6)
     https://git-scm.com/
-hub (optional for sending pull requests to GitHub)
+``hub`` (optional for sending pull requests to GitHub)
     https://hub.github.com/
-git-review (optional for Gerrit support)
+``git-review`` (optional for Gerrit support)
     https://pypi.org/project/git-review/
-git-svn (>= 2.10.0) (optional for Subversion support)
+``git-svn`` (>= 2.10.0) (optional for Subversion support)
     https://git-scm.com/docs/git-svn
-tesseract and it's data (optional for screenshots OCR)
+``tesseract`` and it's data (optional for screenshots OCR)
     https://github.com/tesseract-ocr/tesseract
 
 Compile time dependencies
@@ -118,7 +134,7 @@ Compile time dependencies
 To compile some of the :ref:`python-deps` you might need to install their
 dependencies. This depends on how you install them, so please consult
 individual packages for documentation. You won't need those if using prebuilt
-Wheels while installing using pip or when you use distribution packages.
+``Wheels`` while installing using ``pip`` or when you use distribution packages.
 
 .. _install-weblate:
 
@@ -127,7 +143,7 @@ Installing Weblate
 
 Choose an installation method that best fits your environment.
 
-First choices include complete setup without relying on your system libraries:
+The first choices include complete setup without relying on your system libraries:
 
 * :ref:`virtualenv`
 * :ref:`docker`
@@ -136,14 +152,14 @@ First choices include complete setup without relying on your system libraries:
 You can also install Weblate directly on your system either fully using
 distribution packages (currently available for openSUSE only) or mixed setup.
 
-Choose installation method:
+Choose the installation method:
 
 * :ref:`install-pip`
-* :ref:`install-git` (if you want to run bleeding edge version)
+* :ref:`install-git` (if you want to run the bleeding edge version)
 * Alternatively you can use released archives. You can download them from our
   website <https://weblate.org/>.
 
-And install dependencies according your platform:
+Also install dependencies according to your platform:
 
 * :ref:`deps-debian`
 * :ref:`deps-suse`
@@ -152,15 +168,15 @@ And install dependencies according your platform:
 
 .. _virtualenv:
 
-Installing in virtualenv
-++++++++++++++++++++++++
+Installation in virtualenv
+++++++++++++++++++++++++++
 
-This is recommended method if you don't want to dig into details. This will
-create separate Python environment for Weblate, possibly duplicating some
-system Python libraries.
+This is the recommended method if you don't want to concern yourself with further detail.
+This will create a separate Python environment for Weblate, possibly duplicating some
+of the Python libraries on the system.
 
-1. Install development files for libraries we will use during building
-   Python modules:
+1. Install the development files for libraries to be used during the building
+   of the Python modules:
 
    .. code-block:: sh
 
@@ -173,7 +189,7 @@ system Python libraries.
         # Fedora/RHEL/CentOS:
         dnf install libxslt-devel libxml2-devel freetype-devel libjpeg-devel zlib-devel libyaml-devel python-devel
 
-2. Install pip and virtualenv. Usually they are shipped by your distribution or
+2. Install ``pip`` and ``virtualenv``. Usually they are shipped by your distribution or
    with Python:
 
    .. code-block:: sh
@@ -187,43 +203,42 @@ system Python libraries.
         # Fedora/RHEL/CentOS:
         dnf install python-pip python-virtualenv
 
-3. Create and activate virtualenv for Weblate (the path in ``/tmp`` is really
-   just an example, you rather want something permanent):
+3. Create and activate virtualenv for Weblate:
 
    .. code-block:: sh
 
-        virtualenv /tmp/weblate
-        . /tmp/weblate/bin/activate
+        virtualenv ~/weblate-env
+        . ~/weblate-env/bin/activate
 
-4. Install Weblate including all dependencies, you can also use pip to install
-   optional dependecies:
+4. Install Weblate including all dependencies, you can also use ``pip`` to install
+   optional dependencies:
 
    .. code-block:: sh
-        
+
         pip install Weblate
         # Optional deps
-        pip install pytz python-bidi PyYAML Babel pyuca
+        pip install pytz python-bidi PyYAML pyuca
 
-5. Create your settings (in our example it would be in 
-   :file:`/tmp/weblate/lib/python2.7/site-packages/weblate/settings.py`
-   based on the :file:`settings_example.py` in same directory).
+5. Create your settings (in this example it would be in
+   :file:`~/weblate-env/lib/python2.7/site-packages/weblate/settings.py`
+   based on the :file:`settings_example.py` in the same directory).
 6. You can now run Weblate commands using :command:`weblate` command, see
    :ref:`manage`.
-7. To run webserver, use the wsgi wrapper installed with Weblate (in our case 
-   it is :file:`/tmp/weblate/lib/python2.7/site-packages/weblate/wsgi.py`).
-   Don't forget to set Python search path to your virtualenv as well (for 
-   example using ``virtualenv = /tmp/weblate`` in uwsgi).
+7. To run webserver, use the wsgi wrapper installed with Weblate (in this case
+   it is :file:`~/weblate-env/lib/python2.7/site-packages/weblate/wsgi.py`).
+   Don't forget to set the Python search path to your virtualenv as well (for
+   example using ``virtualenv = /home/user/weblate-env`` in uWSGI).
 
 .. _install-git:
 
 Installing Weblate from Git
 +++++++++++++++++++++++++++
 
-You can also run the latest version from Git. It is maintained stable and
-production ready. You can usually find it running on 
+You can also run the latest version from Git. It is maintained, stable and
+production ready. It is most often the version running
 `Hosted Weblate <https://weblate.org/hosting/>`_.
 
-To get latest sources using Git use:
+To get the latest sources using Git use:
 
 .. code-block:: sh
 
@@ -232,24 +247,24 @@ To get latest sources using Git use:
 .. note::
 
     If you are running a version from Git, you should also regenerate locale
-    files every time you are upgrading. You can do this by invoking script
+    files every time you are upgrading. You can do this by invoking the script
     :file:`./scripts/generate-locales`.
 
 .. _install-pip:
 
-Installing Weblate by pip
-+++++++++++++++++++++++++
+Installing Weblate with pip
++++++++++++++++++++++++++++
 
-If you decide to install Weblate using pip installer, you will notice some
-differences. Most importantly the command line interface is installed  to the
+If you decide to install Weblate using the pip installer, you will notice some
+differences. Most importantly the command line interface is installed to the
 system path as :command:`weblate` instead of :command:`./manage.py` as used in
 this documentation. Also when invoking this command, you will have to specify
-settings, either by environment variable `DJANGO_SETTINGS` or on the command
+settings by the environment variable `DJANGO_SETTINGS_MODULE` on the command
 line, for example:
 
 .. code-block:: sh
 
-    weblate --settings=yourproject.settings migrate
+    DJANGO_SETTINGS_MODULE=yourproject.settings weblate migrate
 
 .. seealso:: :ref:`invoke-manage`
 
@@ -258,49 +273,49 @@ line, for example:
 Requirements on Debian or Ubuntu
 ++++++++++++++++++++++++++++++++
 
-On recent Debian or Ubuntu, most of requirements are already packaged, to
+On recent releases of Debian or Ubuntu, most of the requirements are already packaged, to
 install them you can use apt-get:
 
 .. code-block:: sh
 
     apt-get install python-pip python-django translate-toolkit \
         python-whoosh python-pil \
-        python-babel git mercurial \
+        git mercurial \
         python-django-compressor python-django-crispy-forms \
-        python-djangorestframework python-dateutil
+        python-djangorestframework python-dateutil python-celery
 
     # Optional packages for database backend:
 
     # For PostgreSQL
     apt-get install python-psycopg2
-    # For MySQL on Ubuntu (if using Ubuntu package for Django)
+    # For MySQL on Ubuntu (if using the Ubuntu package for Django)
     apt-get install python-pymysql
     # For MySQL on Debian (or Ubuntu if using upstream Django packages)
     apt-get install python-mysqldb
 
-On older versions, some required dependencies are missing or outdated, so you
+On older releases, some required dependencies are missing or outdated, so you
 need to install several Python modules manually using pip:
 
 .. code-block:: sh
 
-    # Dependencies for python-social-auth
+    # Dependencies for ``python-social-auth``
     apt-get install python-requests-oauthlib python-six python-openid
 
     # Social auth
     pip install social-auth-core
     pip install social-auth-app-django
 
-    # In case your distribution has python-django older than 1.9
+    # In case your distribution has ``python-django`` older than 1.9
     pip install Django
 
-    # In case python-django-crispy-forms package is missing
+    # In case the ``python-django-crispy-forms`` package is missing
     pip install django-crispy-forms
 
-    # In case python-whoosh package is misssing or older than 2.7
-    pip install Whoosh
+    # In case ``python-whoosh`` package is misssing or older than 2.7
+    pip install whoosh
 
-    # In case your python-django-compressor package is missing,
-    # try installing it by older name or using pip:
+    # In case the ``python-django-compressor`` package is missing,
+    # Try installing it by its older name, or by using pip:
     apt-get install python-compressor
     pip install django_compressor
 
@@ -308,7 +323,7 @@ need to install several Python modules manually using pip:
     apt-get install tesseract-ocr libtesseract-dev libleptonica-dev cython
     pip install tesserocr
 
-For proper sorting of a Unicode strings, it is recommended to install pyuca:
+For proper sorting of Unicode strings, it is recommended to install ``pyuca``:
 
 .. code-block:: sh
 
@@ -319,28 +334,28 @@ you might need additional components:
 
 .. code-block:: sh
 
-    # Web server option 1: nginx and uwsgi
+    # Web server option 1: NGINX and uWSGI
     apt-get install nginx uwsgi uwsgi-plugin-python
 
-    # Web server option 2: Apache with mod_wsgi
+    # Web server option 2: Apache with ``mod_wsgi``
     apt-get install apache2 libapache2-mod-wsgi
 
-    # Caching backend: redis
+    # Caching backend: Redis
     apt-get install redis-server
 
-    # Database option 1: postgresql
+    # Database option 1: PostgreSQL
     apt-get install postgresql
 
-    # Database option 2: mariadb
+    # Database option 2: MariaDB
     apt-get install mariadb-server
 
-    # Database option 3: mysql
+    # Database option 3: MySQL
     apt-get install mysql-server
 
     # SMTP server
     apt-get install exim4
 
-    # GitHub PR support: hub
+    # GitHub PR support: ``hub``
     # See https://hub.github.com/
 
 .. _deps-suse:
@@ -356,8 +371,8 @@ Most of requirements are available either directly in openSUSE or in
     zypper install python-Django translate-toolkit \
         python-Whoosh python-Pillow \
         python-social-auth-core python-social-auth-app-django \
-        python-babel Git mercurial python-pyuca \
-        python-dateutil
+        Git mercurial python-pyuca \
+        python-dateutil python-celery
 
     # Optional for database backend
     zypper install python-psycopg2      # For PostgreSQL
@@ -368,36 +383,36 @@ you might need additional components:
 
 .. code-block:: sh
 
-    # Web server option 1: nginx and uwsgi
+    # Web server option 1: NGINX and uWSGI
     zypper install nginx uwsgi uwsgi-plugin-python
 
-    # Web server option 2: Apache with mod_wsgi
+    # Web server option 2: Apache with ``mod_wsgi``
     zypper install apache2 apache2-mod_wsgi
 
-    # Caching backend: redis
+    # Caching backend: Redis
     zypper install redis-server
 
-    # Database option 1: postgresql
+    # Database option 1: PostgreSQL
     zypper install postgresql
 
-    # Database option 2: mariadb
+    # Database option 2: MariaDB
     zypper install mariadb
 
-    # Database option 3: mysql
+    # Database option 3: MySQL
     zypper install mysql
 
     # SMTP server
     zypper install postfix
 
-    # GitHub PR support: hub
+    # GitHub PR support: ``hub``
     # See https://hub.github.com/
 
 .. _deps-osx:
 
-Requirements on OSX
-+++++++++++++++++++
+Requirements on macOS
++++++++++++++++++++++
 
-If your python was not installed using brew, make sure you have this in
+If your Python was not installed using ``brew``, make sure you have this in
 your :file:`.bash_profile` file or executed somehow:
 
 .. code-block:: sh
@@ -411,14 +426,14 @@ This configuration makes the installed libraries available to Python.
 Requirements using pip installer
 ++++++++++++++++++++++++++++++++
 
-Most requirements can be also installed using pip installer:
+Most requirements can be also installed using the pip installer:
 
 .. code-block:: sh
 
     pip install -r requirements.txt
 
-For building some of the extensions devel files for several libraries are required,
-see :ref:`virtualenv` for instructions how to install these.
+For building some of the extensions development files for several libraries are
+required, see :ref:`virtualenv` for instructions how to install these.
 
 All optional dependencies (see above) can be installed using:
 
@@ -434,14 +449,14 @@ Filesystem permissions
 The Weblate process needs to be able to read and write to the directory where it
 keeps data - :setting:`DATA_DIR`.
 
-The default configuration places them in the same tree as Weblate sources, however
-you might prefer to move these to better location such as
+The default configuration places them in the same tree as the Weblate sources, however
+you might prefer to move these to a better location such as:
 :file:`/var/lib/weblate`.
 
 Weblate tries to create these directories automatically, but it will fail
 when it does not have permissions to do so.
 
-You should also take care when running :ref:`manage`, as they should be run
+You should also take care when running :ref:`manage`, as they should be ran
 under the same user as Weblate itself is running, otherwise permissions on some
 files might be wrong.
 
@@ -454,8 +469,8 @@ files might be wrong.
 Database setup for Weblate
 --------------------------
 
-It is recommended to run Weblate on some database server. Using SQLite backend
-is really suitable only for testing purposes.
+It is recommended to run Weblate with some database server. Using a SQLite backend
+is really only suitable for testing purposes.
 
 .. seealso::
 
@@ -472,20 +487,20 @@ database used for implementing Django database layer.
 
     :ref:`django:postgresql-notes`
 
-Creating database in PostgreSQL
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Creating a database in PostgreSQL
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-It is usually good idea to run Weblate in a separate database and separate user account:
+It is usually a good idea to run Weblate in a separate database, and separate user account:
 
 .. code-block:: sh
 
     # If PostgreSQL was not installed before, set the master password
     sudo -u postgres psql postgres -c "\password postgres"
 
-    # Create database user called "weblate"
+    # Create a database user called "weblate"
     sudo -u postgres createuser -D -P weblate
 
-    # Create database "weblate" owned by "weblate"
+    # Create the database "weblate" owned by "weblate"
     sudo -u postgres createdb -O weblate weblate
 
 Configuring Weblate to use PostgreSQL
@@ -515,7 +530,7 @@ The :file:`settings.py` snippet for PostgreSQL:
 MySQL or MariaDB
 ++++++++++++++++
 
-MySQL or MariaDB are quite good choices to run Weblate. However when using MySQL
+MySQL or MariaDB are quite good choices for running Weblate. However when using MySQL
 you might hit some problems caused by it.
 
 .. seealso::
@@ -525,46 +540,61 @@ you might hit some problems caused by it.
 Unicode issues in MySQL
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-MySQL by default uses something called ``utf8``, what can not store all Unicode
+MySQL by default uses something called ``utf8``, which can not store all Unicode
 characters, only those who fit into three bytes in ``utf-8`` encoding. In case
 you're using emojis or some other higher Unicode symbols you might hit errors
-when saving such data. Depending on MySQL and Python bindings version, the
-error might look like:
+when saving such data. Depending on the MySQL and Python bindings version, the
+produced error might look like this:
 
-* ``OperationalError: (1366, "Incorrect string value: '\\xF0\\xA8\\xAB\\xA1' for column 'target' at row 1")``
-* ``UnicodeEncodeError: 'ascii' codec can't encode characters in position 0-3: ordinal not in range(128)``
+* `OperationalError: (1366, "Incorrect string value: '\\xF0\\xA8\\xAB\\xA1' for column 'target' at row 1")`
+* `UnicodeEncodeError: 'ascii' codec can't encode characters in position 0-3: ordinal not in range(128)`
 
-To solve this, you need to change your database to use ``utf8mb4`` (what is again
-subset of Unicode, but this time which can be stored in four bytes in ``utf-8``
+To solve this, you need to change your database to use ``utf8mb4`` (which is again
+a subset of Unicode, but this time one which can be stored in four bytes in ``utf-8``
 encoding, thus covering all chars currently defined in Unicode).
 
-This can be achieved at database creation time by creating it with this
-character set (see :ref:`mysql-create`) and specifying the character set in
-connection settings (see :ref:`mysql-config`).
+This can be achieved during creation of the database by selecting this
+character set (see :ref:`mysql-create`) and specifying that character set in
+the connection settings (see :ref:`mysql-config`).
 
-In case you have existing database, you can change it to ``utf8mb4`` by, but
+In case you have an existing database, you can change it to ``utf8mb4`` by, but
 this won't change collation of existing fields:
 
 .. code-block:: mysql
 
     ALTER DATABASE weblate CHARACTER SET utf8mb4;
 
-.. note::
+Using this charset might however lead to problems with the default MySQL server
+settings, as each character now takes 4 bytes to store, and MySQL has an upper limit
+of 767 bytes for an index. In case this happens you will get one of the following
+error messages:
 
-    If you opt in for ``utf8mb4`` charset from the beginning, you should also
-    set ``SOCIAL_AUTH_UID_LENGTH = 191`` in your :file:`settings.py`, otherwise
-    migration of social auth will fail because of index being too long. See
-    :doc:`psa:configuration/settings`.
+* `1071: Specified key was too long; max key length is 767 bytes`
+* `1709: Index column size too large. The maximum column size is 767 bytes.`
 
-.. seealso::
+There are two ways to work around this limitation. You can configure MySQL to
+not have this limit, see `Using Innodb_large_prefix to Avoid ERROR 1071
+<https://mechanics.flite.com/blog/2014/07/29/using-innodb-large-prefix-to-avoid-error-1071/>`_.
+Alternatively you can also adjust several settings for social-auth in your
+:file:`settings.py` (see :doc:`psa:configuration/settings`):
 
-    `Using Innodb_large_prefix to Avoid ERROR 1071 <http://mechanics.flite.com/blog/2014/07/29/using-innodb-large-prefix-to-avoid-error-1071/>`_
+.. code-block:: python
+
+   # Limit some social-auth fields to 191 chars to fit
+   # them in 767 bytes
+
+   SOCIAL_AUTH_UID_LENGTH = 191
+   SOCIAL_AUTH_NONCE_SERVER_URL_LENGTH = 191
+   SOCIAL_AUTH_ASSOCIATION_SERVER_URL_LENGTH = 191
+   SOCIAL_AUTH_ASSOCIATION_HANDLE_LENGTH = 191
+   SOCIAL_AUTH_EMAIL_LENGTH = 191
+
 
 Transaction locking
 ~~~~~~~~~~~~~~~~~~~
 
-MySQL by default uses has different transaction locking scheme than other
-databases and in case you see errors like `Deadlock found when trying to get
+MySQL by default uses a different transaction locking scheme than other
+databases, and in case you see errors like `Deadlock found when trying to get
 lock; try restarting transaction` it might be good idea to enable
 `STRICT_TRANS_TABLES` mode in MySQL. This can be done in the server
 configuration file (usually :file:`/etc/mysql/my.cnf` on Linux):
@@ -580,17 +610,17 @@ configuration file (usually :file:`/etc/mysql/my.cnf` on Linux):
 
 .. _mysql-create:
 
-Creating database in MySQL
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Creating a database in MySQL
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create ``weblate`` user to access the ``weblate`` database:
 
 .. code-block:: mysql
 
-    # Grant all privileges to  weblate user
+    # Grant all privileges to the user ``weblate``
     GRANT ALL PRIVILEGES ON weblate.* TO 'weblate'@'localhost'  IDENTIFIED BY 'password';
 
-    # Create database on MySQL >= 5.7.7
+    # Create a database on MySQL >= 5.7.7
     CREATE DATABASE weblate CHARACTER SET utf8mb4;
 
     # Use utf8 for older versions
@@ -621,9 +651,11 @@ The :file:`settings.py` snippet for MySQL:
             'PORT': '',
             # Additional database options
             'OPTIONS': {
-                # In case of older MySQL server which has default MariaDB
+                # In case of using an older MySQL server, which has MyISAM as a default storage
                 # 'init_command': 'SET storage_engine=INNODB',
-                # If your server supports it, see Unicode issues above
+                # Uncomment for MySQL older than 5.7:
+                # 'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                # If your server supports it, see the Unicode issues above
                'charset': 'utf8mb4',
             }
 
@@ -635,23 +667,40 @@ Other configurations
 
 .. _out-mail:
 
-Configuring outgoing mail
-+++++++++++++++++++++++++
+Configuring outgoing email
+++++++++++++++++++++++++++
 
 Weblate sends out emails on various occasions - for account activation and on
-various notifications configured by users. For this it needs access to the SMTP
-server, which will handle this.
+various notifications configured by users. For this it needs access to a SMTP
+server.
 
-The mail server setup is configured using settings
+The mail server setup is configured using these settings:
 :setting:`django:EMAIL_HOST`, :setting:`django:EMAIL_HOST_PASSWORD`,
-:setting:`django:EMAIL_HOST_USER` and :setting:`django:EMAIL_PORT`.  Their
-names are quite self-explanatory, but you can find out more information in the
+:setting:`django:EMAIL_HOST_USER` and :setting:`django:EMAIL_PORT`. Their
+names are quite self-explanatory, but you can find more info in the
 Django documentation.
 
 .. note::
 
-        You can verify whether outgoing mail is working correctly by using
+        You can verify whether outgoing email is working correctly by using the
         :djadmin:`django:sendtestemail` management command.
+
+HTTP proxy
+++++++++++
+
+Weblate does execute VCS commands and those accept proxy configuration from
+environment. The recommended approach is to define proxy settings in
+:file:`settings.py`:
+
+.. code-block:: python
+
+   import os
+   os.environ['http_proxy'] = "http://proxy.example.com:8080"
+   os.environ['HTTPS_PROXY'] = "http://proxy.example.com:8080"
+
+.. seealso::
+
+   `Proxy Environment Variables <https://ec.haxx.se/usingcurl-proxies.html#proxy-environment-variables>`_
 
 .. _installation:
 
@@ -671,7 +720,7 @@ options:
 ``ADMINS``
 
     List of site administrators to receive notifications when something goes
-    wrong, for example notifications on failed merge or Django errors.
+    wrong, for example notifications on failed merges, or Django errors.
 
     .. seealso::
 
@@ -681,7 +730,7 @@ options:
 
 ``ALLOWED_HOSTS``
 
-    If you are running Django 1.5 or newer, you need to set this to list of
+    If you are running Django 1.5 or newer, you need to set this to list the
     hosts your site is supposed to serve. For example:
 
     .. code-block:: python
@@ -696,12 +745,12 @@ options:
 
 ``SESSION_ENGINE``
 
-    Configure how your sessions will be stored. In case you keep default
-    database backed engine you should schedule
+    Configure how your sessions will be stored. In case you keep the default
+    database backend engine, you should schedule:
     :command:`./manage.py clearsessions` to remove stale session data from the
     database.
 
-    If you are using redis as cache (see :ref:`production-cache`) it is
+    If you are using Redis as cache (see :ref:`production-cache`) it is
     recommended to use it for sessions as well:
 
     .. code-block:: python
@@ -730,11 +779,11 @@ options:
 
 ``DEBUG``
 
-    Disable this for production server. With debug mode enabled, Django will
+    Disable this for any production server. With debug mode enabled, Django will
     show backtraces in case of error to users, when you disable it, errors will
-    go by email to ``ADMINS`` (see above).
+    be sent per email to ``ADMINS`` (see above).
 
-    Debug mode also slows down Weblate as Django stores much more information
+    Debug mode also slows down Weblate, as Django stores much more info
     internally in this case.
 
     .. seealso::
@@ -755,15 +804,15 @@ options:
 
 ``SECRET_KEY``
 
-    Key used by Django to sign some information in cookies, see
-    :ref:`production-secret` for more information.
+    Key used by Django to sign some info in cookies, see
+    :ref:`production-secret` for more info.
 
 .. setting:: SERVER_EMAIL
 
 ``SERVER_EMAIL``
 
-    Email used as sender address for sending emails to administrator, for
-    example notifications on failed merge.
+    Email used as sender address for sending emails to the administrator, for
+    example notifications on failed merges.
 
     .. seealso::
 
@@ -778,16 +827,16 @@ After your configuration is ready, you can run
 :samp:`./manage.py migrate` to create the database structure. Now you should be
 able to create translation projects using the admin interface.
 
-In case you want to run installation non interactively, you can use
-:samp:`./manage.py migrate --noinput` and then create admin user using
+In case you want to run an installation non interactively, you can use
+:samp:`./manage.py migrate --noinput`, and then create an admin user using
 :djadmin:`createadmin` command.
 
-You should also login to admin interface (on ``/admin/`` URL) and adjust the
-default site name to match your domain by clicking on :guilabel:`Sites` and there
-changing the :samp:`example.com` record to match your real domain name.
+You should also log in to the admin interface (on ``/admin/`` URL) and adjust the
+default sitename to match your domain by clicking on :guilabel:`Sites` and once there,
+change the :samp:`example.com` record to match your real domain name.
 
-Once you are done, you should also check :guilabel:`Performance report` in the
-admin interface which will give you hints for non optimal configuration on your
+Once you are done, you should also check the :guilabel:`Performance report` in the
+admin interface, which will give you hints of potential non optimal configuration on your
 site.
 
 .. seealso::
@@ -799,13 +848,13 @@ site.
 Production setup
 ----------------
 
-For production setup you should do adjustments described in following sections.
-The most critical settings will trigger warning which is indicated by red
-exclamation mark in the top bar if you are logged in as a superuser:
+For a production setup you should carry out adjustments described in the following sections.
+The most critical settings will trigger a warning, which is indicated by a red
+exclamation mark in the top bar if logged in as a superuser:
 
-.. image:: ../images/admin-wrench.png
+.. image:: /images/admin-wrench.png
 
-It is also recommended to inspect checks fired by Django (though you might not
+It is also recommended to inspect checks triggered by Django (though you might not
 need to fix all of them):
 
 .. code-block:: sh
@@ -827,8 +876,8 @@ Disable Django's debug mode (:setting:`DEBUG`) by:
 
     DEBUG = False
 
-With debug mode Django stores all executed queries and shows users backtraces
-of errors which is not desired in production setup.
+With debug mode on, Django stores all executed queries and shows users backtraces
+of errors, which is not desired in a production setup.
 
 .. seealso::
 
@@ -839,8 +888,8 @@ of errors which is not desired in production setup.
 Properly configure admins
 +++++++++++++++++++++++++
 
-Set correct admin addresses to :setting:`ADMINS` setting for defining who will receive
-mail in case something goes wrong on the server, for example:
+Set the correct admin addresses to the :setting:`ADMINS` setting to defining who will receive
+email in case something goes wrong on the server, for example:
 
 .. code-block:: python
 
@@ -854,31 +903,31 @@ mail in case something goes wrong on the server, for example:
 
 .. _production-site:
 
-Set correct site name
+Set correct sitename
 +++++++++++++++++++++
 
-Adjust site name in admin interface, otherwise links in RSS or registration
+Adjust sitename in the admin interface, otherwise links in RSS or registration
 emails will not work.
 
-Please open the admin interface and edit default site name and domain under the
-:guilabel:`Sites › Sites` (or you can do that directly at
+Please open the admin interface and edit the default sitename and domain under the
+:guilabel:`Sites › Sites` (or do it directly at the
 ``/admin/sites/site/1/`` URL under your Weblate installation). You have to change
 the :guilabel:`Domain name` to match your setup.
 
 .. note::
 
-    This setting should contain only the domain name. For configuring protocol
-    (enabling HTTPS) use :setting:`ENABLE_HTTPS` and for changing URL use
+    This setting should only contain the domain name. For configuring protocol,
+    (enabling HTTPS) use :setting:`ENABLE_HTTPS` and for changing URL, use
     :setting:`URL_PREFIX`.
 
-Alternatively, you can set the site name from command line using
-:djadmin:`changesite`. For example, when using built in server:
+Alternatively, you can set the site name from the commandline using
+:djadmin:`changesite`. For example, when using the built-in server:
 
 .. code-block:: sh
 
     ./manage.py changesite --set-name 127.0.0.1:8000
 
-For production site, you want something like:
+For a production site, you want something like:
 
 .. code-block:: sh
 
@@ -894,37 +943,24 @@ For production site, you want something like:
 Correctly configure HTTPS
 +++++++++++++++++++++++++
 
-It is strongly recommended to run Weblate using encrypted HTTPS protocol. After
-enabling you shoud sed :setting:`ENABLE_HTTPS` settings which also adjusts
+It is strongly recommended to run Weblate using the encrypted HTTPS protocol.
+After enabling it, you should set :setting:`ENABLE_HTTPS` in the settings, which also adjusts
 several other related Django settings in the example configuration.
 
-You might want to configure HSTS as well, see
+You might want to set up HSTS as well, see
 :ref:`django:security-recommendation-ssl` for more details.
-
-.. _production-indexing:
-
-Enable indexing offloading
-++++++++++++++++++++++++++
-
-Enable :setting:`OFFLOAD_INDEXING` to prevent locking issues and improve
-performance. Don't forget to schedule indexing as a background job to keep the
-index up to date.
-
-.. seealso::
-
-   :ref:`fulltext`, :setting:`OFFLOAD_INDEXING`, :ref:`production-cron`
 
 .. _production-database:
 
-Use powerful database engine
-++++++++++++++++++++++++++++
+Use a powerful database engine
+++++++++++++++++++++++++++++++
 
-Use a powerful database engine (SQLite is usually not good enough for production
-environment), see :ref:`database-setup` for more information.
+SQLite is usually not good enough for a production
+environment, see :ref:`database-setup` for more info.
 
 .. seealso::
 
-    :ref:`database-setup`, 
+    :ref:`database-setup`,
     :ref:`installation`,
     :doc:`django:ref/databases`
 
@@ -933,7 +969,7 @@ environment), see :ref:`database-setup` for more information.
 Enable caching
 ++++++++++++++
 
-If possible, use redis from Django by adjusting ``CACHES`` configuration
+If possible, use Redis from Django by adjusting the ``CACHES`` configuration
 variable, for example:
 
 .. code-block:: python
@@ -952,7 +988,7 @@ variable, for example:
         }
     }
 
-Alternatively you can also use memcached:
+Alternatively, you can also use Memcached:
 
 .. code-block:: python
 
@@ -965,7 +1001,7 @@ Alternatively you can also use memcached:
 
 .. seealso::
 
-    :ref:`production-cache-avatar`, 
+    :ref:`production-cache-avatar`,
     :doc:`django:topics/cache`
 
 .. _production-cache-avatar:
@@ -974,7 +1010,7 @@ Avatar caching
 ++++++++++++++
 
 In addition to caching of Django, Weblate performs caching of avatars. It is
-recommended to use separate, file backed cache for this purpose:
+recommended to use a separate, file-backed cache for this purpose:
 
 .. code-block:: python
 
@@ -999,9 +1035,10 @@ recommended to use separate, file backed cache for this purpose:
 
 .. seealso::
 
-    :setting:`ENABLE_AVATARS`, 
+    :setting:`ENABLE_AVATARS`,
+    :setting:`AVATAR_URL_PREFIX`,
     :ref:`avatars`,
-    :ref:`production-cache`, 
+    :ref:`production-cache`,
     :doc:`django:topics/cache`
 
 .. _production-email:
@@ -1009,8 +1046,8 @@ recommended to use separate, file backed cache for this purpose:
 Configure email addresses
 +++++++++++++++++++++++++
 
-Weblate needs to send out emails on several occasions and these emails should
-have correct sender address, please configure :setting:`SERVER_EMAIL` and
+Weblate needs to send out emails on several occasions, and these emails should
+have a correct sender address, please configure :setting:`SERVER_EMAIL` and
 :setting:`DEFAULT_FROM_EMAIL` to match your environment, for example:
 
 .. code-block:: python
@@ -1031,7 +1068,7 @@ Allowed hosts setup
 +++++++++++++++++++
 
 Django 1.5 and newer require :setting:`ALLOWED_HOSTS` to hold a list of domain names
-your site is allowed to serve, having it empty will block any request.
+your site is allowed to serve, leaving it empty will block any requests.
 
 .. seealso::
 
@@ -1039,12 +1076,12 @@ your site is allowed to serve, having it empty will block any request.
 
 .. _production-pyuca:
 
-pyuca library
-+++++++++++++
+The ``pyuca`` library
++++++++++++++++++++++
 
-`pyuca`_ library is optionally used by Weblate to sort Unicode strings. This
-way language names are properly sorted even in non-ASCII languages like
-Japanese, Chinese or Arabic or for languages with accented letters.
+The `pyuca`_ library is optionally used by Weblate to sort Unicode strings.
+This way language names are properly sorted, even in non-ASCII languages like
+Japanese, Chinese or Arabic, or for languages that employ diactrics.
 
 .. _pyuca: https://github.com/jtauber/pyuca
 
@@ -1053,10 +1090,10 @@ Japanese, Chinese or Arabic or for languages with accented letters.
 Django secret key
 +++++++++++++++++
 
-The :setting:`SECRET_KEY` setting is used by Django to sign cookies and you should
-really generate your own value rather than using the one coming from example setup.
+The :setting:`SECRET_KEY` setting is used by Django to sign cookies, and you should
+really generate your own value rather than using the one from the example setup.
 
-You can generate new key using :file:`examples/generate-secret-key` shipped
+You can generate a new key using :file:`examples/generate-secret-key` shipped
 with Weblate.
 
 .. seealso::
@@ -1069,9 +1106,9 @@ with Weblate.
 Static files
 ++++++++++++
 
-If you see purely designed admin interface, the CSS files required for it are
-not loaded. This is usually if you are running in non-debug mode and have not
-configured your web server to serve them. Recommended setup is described in the
+If you see sparsely designed admin interface, the CSS files required for it are
+not loaded. This usually happens if you are running in non-debug mode and have not
+configured your web server to serve them. The recommended setup is described in the
 :ref:`static-files` chapter.
 
 .. seealso::
@@ -1087,13 +1124,13 @@ Home directory
    This is no longer required, Weblate now stores all its data in
    :setting:`DATA_DIR`.
 
-The home directory for the user which is running Weblate should be existing and
+The home directory for the user running Weblate should exist and be
 writable by this user. This is especially needed if you want to use SSH to
 access private repositories, but Git might need to access this directory as
-well (depends on the Git version you use).
+well (depending on the Git version you use).
 
 You can change the directory used by Weblate in :file:`settings.py`, for
-example to set it to ``configuration`` directory under Weblate tree:
+example to set it to ``configuration`` directory under the Weblate tree:
 
 .. code-block:: python
 
@@ -1101,11 +1138,11 @@ example to set it to ``configuration`` directory under Weblate tree:
 
 .. note::
 
-    On Linux and other UNIX like systems, the path to user's home directory is
-    defined in :file:`/etc/passwd`. Many distributions default to non writable
+    On Linux, and other UNIX like systems, the path to user's home directory is
+    defined in :file:`/etc/passwd`. Many distributions default to a non-writable
     directory for users used for serving web content (such as ``apache``,
     ``www-data`` or ``wwwrun``, so you either have to run Weblate under
-    a different user or change this setting.
+    a different user, or change this setting.
 
 .. seealso::
 
@@ -1116,8 +1153,8 @@ example to set it to ``configuration`` directory under Weblate tree:
 Template loading
 ++++++++++++++++
 
-It is recommended to use cached template loader for Django. It caches parsed
-templates and avoids the need to do the parsing with every single request. You can
+It is recommended to use a cached template loader for Django. It caches parsed
+templates and avoids the need to do parsing with every single request. You can
 configure it using the following snippet (the ``loaders`` setting is important here):
 
 .. code-block:: python
@@ -1158,35 +1195,51 @@ Running maintenance tasks
 +++++++++++++++++++++++++
 
 For optimal performance, it is good idea to run some maintenance tasks in the
-background.
+background. This is now automatically done by :ref:`celery` and covers following tasks:
 
-On a Unix-likesystem, this can be scheduled using cron:
+* Configuration health check (hourly).
+* Committing pending changes (hourly), see :ref:`lazy-commit` and :djadmin:`commit_pending`.
+* Updating component alerts (daily).
+* Update remote branches (nightly), see :setting:`AUTO_UPDATE`.
+* Translation memory backup to JSON (daily), see :djadmin:`dump_memory`.
+* Fulltext and database maintenance tasks (daily and weekly taks), see :djadmin:`cleanuptrans`.
 
-.. code-block:: text
+.. versionchanged:: 3.2
 
-    # Fulltext index updates
-    */5 * * * * cd /usr/share/weblate/; ./manage.py update_index
-
-    # Cleanup stale objects
-    @daily cd /usr/share/weblate/; ./manage.py cleanuptrans
-
-    # Commit pending changes after 96 hours
-    @hourly cd /usr/share/weblate/; ./manage.py commit_pending --all --age=96 --verbosity=0
-
-.. seealso::
-
-   :ref:`production-indexing`, :djadmin:`update_index`, :djadmin:`cleanuptrans`, :djadmin:`commit_pending`
+   Since version 3.2, the default way of executing these tasks is using Celery
+   and Weblate already comes with proper configuration, see :ref:`celery`.
 
 .. _server:
 
 Running server
 --------------
 
+You will need several services to run Weblate, the recommended setup consists of:
+
+* Database server (see :ref:`database-setup`)
+* Cache server (see :ref:`production-cache`)
+* Frontend web server for static files and SSL termination (see :ref:`static-files`)
+* Wsgi server for dynamic content (see :ref:`uwsgi`)
+* Celery for executing background tasks (see :ref:`celery`)
+
+.. note::
+
+   There are some dependencies between the services, for example cache and
+   database should be running when starting up Celery or uwsgi processes.
+
+In most cases, you will run all services on single (virtual) server, but in
+case your installation is heavy loaded, you can split up the services. The only
+limitation on this is that Celery and Wsgi servers need access to
+:setting:`DATA_DIR`.
+
+Running web server
+++++++++++++++++++
+
 Running Weblate is not different from running any other Django based
-application. Django is usually executed as uwsgi or fcgi (see examples for
+program. Django is usually executed as uWSGI or fcgi (see examples for
 different webservers below).
 
-For testing purposes, you can use the Django built-in web server:
+For testing purposes, you can use the built-in web server in Django:
 
 .. code-block:: sh
 
@@ -1194,7 +1247,7 @@ For testing purposes, you can use the Django built-in web server:
 
 .. warning::
 
-    Do not use this in production as this has severe performance limitations.
+    Do not use this in production, as this has severe performance limitations.
 
 .. _static-files:
 
@@ -1203,26 +1256,26 @@ Serving static files
 
 .. versionchanged:: 2.4
 
-    Prior to version 2.4 Weblate didn't properly use Django static files
+    Prior to version 2.4, Weblate didn't properly use the Django static files
     framework and the setup was more complex.
 
-Django needs to collect its static files to a single directory. To do so,
+Django needs to collect its static files in a single directory. To do so,
 execute :samp:`./manage.py collectstatic --noinput`. This will copy the static
-files into directory specified by ``STATIC_ROOT`` setting (this defaults to
-``static`` directory inside :setting:`DATA_DIR`).
+files into a directory specified by the ``STATIC_ROOT`` setting (this defaults to
+a ``static`` directory inside :setting:`DATA_DIR`).
 
-It is recommended to serve static files directly by your web server, you should
-use that for following paths:
+It is recommended to serve static files directly from your web server, you should
+use that for the following paths:
 
 :file:`/static/`
-    Serves static files for Weblate and admin interface
+    Serves static files for Weblate and the admin interface
     (from defined by ``STATIC_ROOT``).
 :file:`/media/`
-    Used for user media uploads (eg. screenshots).
+    Used for user media uploads (e.g. screenshots).
 :file:`/favicon.ico`
-    Should be rewritten to rewrite rule to serve :file:`/static/favicon.ico`
+    Should be rewritten to rewrite a rule to serve :file:`/static/favicon.ico`
 :file:`/robots.txt`
-    Should be rewritten to rewrite rule to serve :file:`/static/robots.txt`
+    Should be rewritten to rewrite a rule to serve :file:`/static/robots.txt`
 
 .. seealso::
 
@@ -1234,17 +1287,17 @@ use that for following paths:
 Content security policy
 +++++++++++++++++++++++
 
-Default Weblate configuration enables ``weblate.middleware.SecurityMiddleware``
+The default Weblate configuration enables ``weblate.middleware.SecurityMiddleware``
 middleware which sets security related HTTP headers like ``Content-Security-Policy``
-or ``X-XSS-Protection``. These are set to work with Weblate and it's
-configuration, but this might clash with your customization. If that is your
+or ``X-XSS-Protection``. These are by default set up to work with Weblate and it's
+configuration, but this might clash with your customization. If that is the
 case, it is recommended to disable this middleware and set these headers
 manually.
 
 Sample configuration for Apache
 +++++++++++++++++++++++++++++++
 
-Following configuration runs Weblate as WSGI, you need to have enabled
+The following configuration runs Weblate as WSGI, you need to have enabled
 mod_wsgi (available as :file:`examples/apache.conf`):
 
 .. literalinclude:: ../../examples/apache.conf
@@ -1257,10 +1310,10 @@ replace `Require all granted` with `Allow from all`.
 
     :doc:`django:howto/deployment/wsgi/modwsgi`
 
-Sample configuration for Apache and gunicorn
+Sample configuration for Apache and Gunicorn
 ++++++++++++++++++++++++++++++++++++++++++++
 
-Following configuration runs Weblate in gunicorn and Apache 2.4
+The following configuration runs Weblate in Gunicorn and Apache 2.4
 (available as :file:`examples/apache.gunicorn.conf`):
 
 .. literalinclude:: ../../examples/apache.gunicorn.conf
@@ -1270,17 +1323,20 @@ Following configuration runs Weblate in gunicorn and Apache 2.4
 
     :doc:`django:howto/deployment/wsgi/gunicorn`
 
-Sample configuration for nginx and uwsgi
+
+.. _uwsgi:
+
+Sample configuration for NGINX and uWSGI
 ++++++++++++++++++++++++++++++++++++++++
 
-The following configuration runs Weblate as uwsgi under nginx webserver.
+The following configuration runs Weblate as uWSGI under the NGINX webserver.
 
-Configuration for nginx (also available as :file:`examples/weblate.nginx.conf`):
+Configuration for NGINX (also available as :file:`examples/weblate.nginx.conf`):
 
 .. literalinclude:: ../../examples/weblate.nginx.conf
     :language: nginx
 
-Configuration for uwsgi (also available as :file:`examples/weblate.uwsgi.ini`):
+Configuration for uWSGI (also available as :file:`examples/weblate.uwsgi.ini`):
 
 .. literalinclude:: ../../examples/weblate.uwsgi.ini
     :language: ini
@@ -1296,7 +1352,7 @@ Running Weblate under path
 
     This is supported since Weblate 1.3.
 
-Sample Apache configuration to serve Weblate under ``/weblate``.  Again using
+A sample Apache configuration to serve Weblate under ``/weblate``. Again using
 mod_wsgi (also available as :file:`examples/apache-path.conf`):
 
 .. literalinclude:: ../../examples/apache-path.conf
@@ -1308,11 +1364,83 @@ Additionally, you will have to adjust :file:`weblate/settings.py`:
 
     URL_PREFIX = '/weblate'
 
+.. _celery:
+
+Background tasks using Celery
++++++++++++++++++++++++++++++
+
+.. versionadded:: 3.2
+
+Weblate uses Celery to process background tasks. The example settings come with
+eager configuration, which does process all tasks in place, but you want to
+change this to something more reasonable for a production setup.
+
+A typical setup using Redis as a backend looks like this:
+
+.. code-block:: python
+
+   CELERY_TASK_ALWAYS_EAGER = False
+   CELERY_BROKER_URL = 'redis://localhost:6379'
+   CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+
+You should also start the Celery worker to process the tasks and start
+scheduled tasks, this can be done directly on the command line (which is mostly
+useful when debugging or developing):
+
+.. code-block:: sh
+
+   ./examples/celery start
+   ./examples/celery stop
+
+Most likely you will want to run Celery as a daemon and that is covered by
+:doc:`celery:userguide/daemonizing`. For the most common Linux setup using
+systemd, you can use the example files shipped in the :file:`examples` folder
+listed below.
+
+Systemd unit to be placed as :file:`/etc/systemd/system/celery-weblate.service`:
+
+.. literalinclude:: ../../examples/celery-weblate.service
+    :language: ini
+    :encoding: utf-8
+
+Environment configuration to be placed as :file:`/etc/default/celery-weblate`:
+
+.. literalinclude:: ../../examples/celery-weblate.conf
+    :language: sh
+    :encoding: utf-8
+
+Logrotate configuration to be placed as :file:`/etc/logrotate.d/celery`:
+
+.. literalinclude:: ../../examples/celery-weblate.logrotate
+    :language: text
+    :encoding: utf-8
+
+Weblate comes with built-in setup for scheduled tasks. You can however define
+additional tasks in :file:`settings.py`, for example see :ref:`lazy-commit`.
+
+.. note::
+
+   The Celery process has to be executed under the same user as Weblate and the WSGI
+   process, otherwise files in the :setting:`DATA_DIR` will be stored with
+   mixed ownership, leading to runtime issues.
+
+.. warning::
+
+   The Celery errors are by default only logged into Celery log and are not
+   visible to user. In case you want to have overview on such failures, it is
+   recommended to configure :ref:`collecting-errors`.
+
+.. seealso::
+
+   :doc:`celery:userguide/configuration`,
+   :doc:`celery:userguide/workers`,
+   :doc:`celery:userguide/daemonizing`
+
 
 Monitoring Weblate
 ------------------
 
-Weblate provides ``/healthz/`` URL to be used in simple health checks, for example
+Weblate provides the ``/healthz/`` URL to be used in simple health checks, for example
 using Kubernetes.
 
 .. _collecting-errors:
@@ -1320,18 +1448,46 @@ using Kubernetes.
 Collecting error reports
 ------------------------
 
-It is good idea to collect errors from any Django application in structured way
-and Weblate is not an exception from this. You might find several services providing
-this, for example:
+Weblate, as any other software, can fail. In order to collect useful failure
+states we recommend to use third party services to collect such information.
+This is especially useful in case of failing Celery tasks, which would
+otherwise only report error to the logs and you won't get notified on them.
+Weblate has support for the following services:
 
-* `Sentry <https://sentry.io>`_
-* `Rollbar <https://rollbar.com/>`_
+Sentry
+++++++
+
+Weblate has built in support for `Sentry <https://sentry.io/>`_. To use
+it it's enough to follow instructions for `Sentry for Python <https://docs.sentry.io/clients/python/>`_.
+
+In short, you need to adjust :file:`settings.py`:
+
+.. code-block:: python
+
+    import raven
+
+    # Add raven to apps:
+    INSTALLED_APPS = (
+        # ... other app classes ...
+        'raven.contrib.django.raven_compat',
+    )
+
+
+    RAVEN_CONFIG = {
+        'dsn': 'https://id:key@your.sentry.example.com/',
+        # Setting public_dsn will allow collecting user feedback on errors
+        'public_dsn': 'https://id@your.sentry.example.com/',
+        # If you are using git, you can also automatically configure the
+        # release based on the git info.
+        'release': raven.fetch_git_sha(BASE_DIR),
+    }
+
 
 Rollbar
 +++++++
 
-Weblate has built in support for `Rollbar <https://rollbar.com/>`_. To use
-it it's enough to follow instructions for `Rollbar notifier for Python <https://rollbar.com/docs/notifier/pyrollbar/>`_.
+Weblate has built-in support for `Rollbar <https://rollbar.com/>`_. To use
+it it's enough to follow instructions for `Rollbar notifier for Python <https://docs.rollbar.com/docs/python/>`_.
 
 In short, you need to adjust :file:`settings.py`:
 
@@ -1339,7 +1495,7 @@ In short, you need to adjust :file:`settings.py`:
 
     # Add rollbar as last middleware:
     MIDDLEWARE = [
-        # ... other middleware classes ...
+        # … other middleware classes …
         'rollbar.contrib.django.middleware.RollbarNotifierMiddleware',
     ]
 
@@ -1357,15 +1513,15 @@ and client side errors.
 
 .. note:
 
-    Error logging also includes exceptions which were gracefully handled, but
-    might indicate problem - such as failed parsing of uploaded file.
+    Error logging also includes exceptions that were gracefully handled, but
+    might indicate a problem - such as failed parsing of an uploaded file.
 
 Migrating Weblate to another server
 -----------------------------------
 
 Migrating Weblate to another server should be pretty easy, however it stores
 data in few locations which you should migrate carefully. The best approach is
-to stop migrated Weblate for the migration.
+to stop Weblate for the migration.
 
 Migrating database
 ++++++++++++++++++
@@ -1375,8 +1531,8 @@ the database. The most straightforward one is to dump the database on one
 server and import it on the new one. Alternatively you can use replication in
 case your database supports it.
 
-The best approach is to use database native tools as they are usually the most
-effective (eg. :command:`mysqldump` or :command:`pg_dump`). If you want to
+The best approach is to use database native tools, as they are usually the most
+effective (e.g. :command:`mysqldump` or :command:`pg_dump`). If you want to
 migrate between different databases, the only option might be to use Django
 management to dump and import the database:
 
@@ -1397,11 +1553,11 @@ more effectively.
 Migrating fulltext index
 ++++++++++++++++++++++++
 
-For the fulltext index (stored in :setting:`DATA_DIR`) it is better not to
-migrate it, but rather to generate a fresh one using :djadmin:`rebuild_index`.
+For the fulltext index, (stored in :setting:`DATA_DIR`) it is better not to
+migrate it, but rather generate a fresh one using :djadmin:`rebuild_index`.
 
 Other notes
 +++++++++++
 
-Don't forget to move other services which Weblate might have been using like
-redis, memcached, cron jobs or custom authentication backends.
+Don't forget to move other services Weblate might have been using like
+Redis, Memcached, Cron jobs or custom authentication backends.

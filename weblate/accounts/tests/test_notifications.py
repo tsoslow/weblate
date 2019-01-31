@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -23,6 +23,7 @@ Tests for user handling.
 """
 
 from django.core import mail
+from django.test.utils import override_settings
 
 from weblate.auth.models import User
 from weblate.accounts.models import Profile
@@ -70,6 +71,7 @@ class NotificationTest(FixtureTestCase, RegistrationTestMixin):
             'testpassword'
         )
 
+    @override_settings(ADMINS=(('Weblate test', 'noreply@weblate.org'), ))
     def test_notify_merge_failure(self):
         notify_merge_failure(
             self.component,
@@ -95,6 +97,7 @@ class NotificationTest(FixtureTestCase, RegistrationTestMixin):
         # Check mail (second one is for admin)
         self.assertEqual(len(mail.outbox), 5)
 
+    @override_settings(ADMINS=(('Weblate test', 'noreply@weblate.org'), ))
     def test_notify_parse_error(self):
         notify_parse_error(
             self.component,
@@ -263,9 +266,8 @@ class NotificationTest(FixtureTestCase, RegistrationTestMixin):
         self.assert_notify_mailbox(mail.outbox[0])
 
     def test_notify_html_language(self):
-        profile = Profile.objects.get(user=self.user)
-        profile.language = 'cs'
-        profile.save()
+        self.user.profile.language = 'cs'
+        self.user.profile.save()
         request = self.get_request('/')
         notify_account_activity(request.user, request, 'password')
         self.assertEqual(len(mail.outbox), 1)

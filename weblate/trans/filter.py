@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -34,7 +34,7 @@ def get_filter_choice(include_source=False):
         ('translated', _('Translated strings')),
         ('fuzzy', _('Strings marked for edit')),
         ('suggestions', _('Strings with suggestions')),
-        ('nosuggestions', _('Strings without suggestions')),
+        ('nosuggestions', _('Strings needing action without suggestions')),
         ('comments', _('Strings with comments')),
         ('allchecks', _('Strings with any failing checks')),
         ('approved', _('Approved strings')),

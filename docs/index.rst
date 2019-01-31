@@ -26,10 +26,14 @@ Contents:
     contributing
     internals
     license
+    legal
 
 
-Indices and tables
-==================
+.. only:: format_html
 
-* :ref:`genindex`
-* :ref:`search`
+   Indices and tables
+   ==================
+
+   * :ref:`genindex`
+   * :ref:`search`
+

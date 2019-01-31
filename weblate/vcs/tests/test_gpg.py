@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -29,7 +29,7 @@ from django.test.utils import override_settings
 from weblate.vcs.gpg import (
     generate_gpg_key, get_gpg_key, get_gpg_sign_key, get_gpg_public_key,
 )
-from weblate.utils.data import check_data_writable
+from weblate.utils.checks import check_data_writable
 from weblate.utils.unittest import tempdir_setting
 
 

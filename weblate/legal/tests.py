@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -100,7 +100,7 @@ class LegalTest(TestCase, RegistrationTestMixin):
         user = create_test_user()
         # Unauthenticated
         response = self.client.get(reverse('home'), follow=True)
-        self.assertContains(response, 'Suggested translations')
+        self.assertContains(response, 'Browse all 0 projects')
         # Login
         self.client.login(username='testuser', password='testpassword')
         # Chck that homepage redirects

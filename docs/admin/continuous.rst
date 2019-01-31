@@ -3,18 +3,18 @@
 Continuous translation
 ======================
 
-Weblate provides you with a great infrastructure for translation to closely follow
-your development. This way translators can work on translations the entire time and
-are not forced to translate a huge amount of new texts before release.
+There is infrastructure in place so that your translation closely follows
+development. This way translators can work on translations the entire time,
+instead of working through huge amount of new text just prior to release.
 
-The complete process can be described in following steps:
+This is the process:
 
-1. Developers make some changes and push them to the VCS repository.
+1. Developers make changes and push them to the VCS repository.
 2. Optionally the translation files are updated (this depends on the file format, see :ref:`translations-update`).
 3. Weblate pulls changes from the VCS repository, see :ref:`update-vcs`.
-4. Once Weblate detects changes in translations, translators will be notified based on their subscription settings.
-5. Translators make translations using Weblate web interface.
-6. Once translators are done, Weblate commits the changes to the local repository (see :ref:`lazy-commit`) and pushes them back if it has permissions to do that (see :ref:`push-changes`).
+4. Once Weblate detects changes in translations, translators are notified based on their subscription settings.
+5. Translators submit translations using the Weblate web interface, or upload offline changes.
+6. Once the translators are finished, Weblate commits the changes to the local repository (see :ref:`lazy-commit`) and pushes them back if it has permissions to do so (see :ref:`push-changes`).
 
 .. graphviz::
 
@@ -40,33 +40,33 @@ The complete process can be described in following steps:
 Updating repositories
 ---------------------
 
-You should set up some way how backend repositories are updated from their
-source. You can either use hooks (see :ref:`hooks`) or just regularly run
-:djadmin:`updategit` (with selection of project or `--all` for updating all).
+You should set up some way of updating backend repositories from their
+source. Either use hooks (see :ref:`hooks`) or just regularly run
+:djadmin:`updategit` (with selection of project or `--all` to update all).
 
 Whenever Weblate updates the repository, the :guilabel:`Post-update script`
 hooks are executed.
 
-With Gettext po files, you might be often bitten by conflict in PO file
-headers. To avoid it, you can use shipped merge driver
-(:file:`examples/git-merge-gettext-po`). To use it just put following
-configuration to your :file:`.gitconfig`:
+With Gettext PO files, you might get bit by conflicts in PO file
+headers. To avoid it, you can use the shipped merge driver
+(:file:`examples/git-merge-gettext-po`). Use it by putting the following
+configuration in your :file:`.gitconfig`:
 
 .. code-block:: ini
 
    [merge "merge-gettext-po"]
-     name = merge driver for gettext po files
+     name = merge driver for Gettext PO files
      driver = /path/to/weblate/examples/git-merge-gettext-po %O %A %B
 
-And enable its use by defining proper attributes in given repository (eg. in
+Then enable its use by defining proper attributes in the given repository (e.g. in
 :file:`.git/info/attributes`)::
 
     *.po merge=merge-gettext-po
 
 .. note::
 
-    This merge driver assumes the changes in POT files always are done in the branch
-    we're trying to merge.
+    This merge driver assumes changes in POT files always are done in the
+    attemptedly merged branch.
 
 .. versionchanged:: 2.9
 
@@ -78,13 +78,13 @@ And enable its use by defining proper attributes in given repository (eg. in
 Avoiding merge conflicts
 ++++++++++++++++++++++++
 
-To avoid merge conflicts you should control when to update translation files in
-upstream repository to avoid Weblate having changes on same file.
+To avoid merge conflicts, control when translation files are updated in
+the upstream repository to avoid Weblate having changes on the same file.
 
-You can achieve this using :ref:`api` to force Weblate push all pending changes
-and lock translation while you are doing changes on your side.
+You can achieve this using :ref:`api` to force Weblate to push all pending changes
+and lock the translation while you are doing changes on your side.
 
-The script for doing updates can look like:
+The script for doing updates can look like this:
 
 .. code-block:: sh
 
@@ -99,14 +99,14 @@ The script for doing updates can look like:
     git commit -m 'Locale updates' -- locale
     # Push changes to upstream repository
     git push
-    # Tell Weblate to pull changes (not needed if Weblate follows your repo 
+    # Tell Weblate to pull changes (not needed if Weblate follows your repo
     # automatically)
     wlc pull
     # Unlock translations
     wlc unlock
 
 If you have multiple components sharing same repository, you need to lock them
-all separatey:
+all separately:
 
 .. code-block:: sh
 
@@ -116,29 +116,36 @@ all separatey:
 
 .. note::
 
-    The example uses :ref:`wlc`, which will need configuration (API keys) to be
+    The example uses :ref:`wlc`, which needs configuration (API keys) to be
     able to control Weblate remotely. You can also achieve this using any HTTP
-    client instead of wlc, eg. curl, see :ref:`api`.
+    client instead of wlc, e.g. curl, see :ref:`api`.
 
 .. _github-setup:
 
 Automatically receiving changes from GitHub
 +++++++++++++++++++++++++++++++++++++++++++
 
-Weblate comes with native support for GitHub. To receive notifications on every
-push to GitHub repository, you just need to add Weblate Webhook in the
-repository settings (:guilabel:`Webhooks`) as shown on the image below:
+Weblate comes with native support for GitHub.
 
-.. image:: ../images/github-settings.png
+If you are using Hosted Weblate, the recommended approach is to install the 
+`Hosted Weblate app <https://github.com/apps/hosted-weblate>`_, that way you
+will get the correct setup without having to set much up. It can also be used
+for pushing changes back.
 
-For the payload URL append ``/hooks/github/`` to your Weblate URL, for example
-for Hosted Weblate service this is ``https://hosted.weblate.org/hooks/github/``.
+To receive notifications on every push to a GitHub repository,
+add the Weblate Webhook in the repository settings (:guilabel:`Webhooks`)
+as shown on the image below:
 
-You can leave other values on the default settings (Weblate can handle both
+.. image:: /images/github-settings.png
+
+For the payload URL, append ``/hooks/github/`` to your Weblate URL, for example
+for the Hosted Weblate service, this is ``https://hosted.weblate.org/hooks/github/``.
+
+You can leave other values at default settings (Weblate can handle both
 content types and consumes just the `push` event).
 
 .. seealso::
-   
+
    :http:post:`/hooks/github/`, :ref:`hosted-push`
 
 .. _bitbucket-setup:
@@ -146,15 +153,15 @@ content types and consumes just the `push` event).
 Automatically receiving changes from Bitbucket
 ++++++++++++++++++++++++++++++++++++++++++++++
 
-Weblate has support for Bitbucket webhooks, all you need to do is add a webhook
-which triggers on repository push with destination to ``/hooks/bitbucket/`` URL
+Weblate has support for Bitbucket webhooks, add a webhook
+which triggers upon repository push, with destination to ``/hooks/bitbucket/`` URL
 on your Weblate installation (for example
 ``https://hosted.weblate.org/hooks/bitbucket/``).
 
-.. image:: ../images/bitbucket-settings.png
+.. image:: /images/bitbucket-settings.png
 
-.. seealso:: 
-   
+.. seealso::
+
    :http:post:`/hooks/bitbucket/`, :ref:`hosted-push`
 
 .. _gitlab-setup:
@@ -162,39 +169,63 @@ on your Weblate installation (for example
 Automatically receiving changes from GitLab
 +++++++++++++++++++++++++++++++++++++++++++
 
-Weblate has support for GitLab hooks, all you need to do is add project web hook
+Weblate has support for GitLab hooks, add a project webhook
 with destination to ``/hooks/gitlab/`` URL on your Weblate installation
 (for example ``https://hosted.weblate.org/hooks/gitlab/``).
 
-.. seealso:: 
-   
+.. seealso::
+
    :http:post:`/hooks/gitlab/`, :ref:`hosted-push`
+
+.. _pagure-setup:
+
+Automatically receiving changes from Pagure
++++++++++++++++++++++++++++++++++++++++++++
+
+.. versionadded:: 3.3
+
+Weblate has support for Pagure hooks, add a webhook
+with destination to ``/hooks/pagure/`` URL on your Weblate installation (for
+example ``https://hosted.weblate.org/hooks/pagure/``). This can be done in
+:guilabel:`Activate Web-hooks` under :guilabel:`Project options`:
+
+.. image:: /images/pagure-webhook.png
+
+.. seealso::
+
+   :http:post:`/hooks/pagure/`, :ref:`hosted-push`
+
+Automatically updating repositories nightly
++++++++++++++++++++++++++++++++++++++++++++
+
+Weblate automatically fetches remote repositories nightly to improve
+performance when merging changes later. You can optionally turn this into doing
+nightly merges as well, by enabling :setting:`AUTO_UPDATE`.
 
 .. _push-changes:
 
 Pushing changes
 ---------------
 
-Each project can have a push URL configured and in that case Weblate offers
+Each project can have a push URL set up, and in that case Weblate offers
 a button in the web interface to push changes to the remote repository.
-Weblate can be also configured to automatically push changes on every commit.
+Weblate can be also be configured to automatically push changes on every commit.
 
 If you are using SSH to push, you will need to have a key without a passphrase
-(or use ssh-agent for Django) and the remote server needs to be verified by you
+(or use ssh-agent for Django), and the remote server needs to be verified by you
 via the admin interface first, otherwise pushing will fail.
 
-The push options differ based on the :ref:`vcs` used, please check that chapter for
-more details.
+The push options differ based on the :ref:`vcs` used, more details are found in that chapter.
 
 .. note::
 
-   You can also enable the automatic pushing of changes on commit, this can be done in
+   You can also enable automatic pushing of changes on commits, this can be done in
    :ref:`component`.
 
 .. seealso::
 
-    See :ref:`vcs-repos` for setting up SSH keys and :ref:`lazy-commit` for
-    information about when Weblate decides to commit changes.
+    See :ref:`vcs-repos` for setting up SSH keys, and :ref:`lazy-commit` for
+    info about when Weblate decides to commit changes.
 
 .. _hosted-push:
 
@@ -202,9 +233,9 @@ Pushing changes from Hosted Weblate
 +++++++++++++++++++++++++++++++++++
 
 For Hosted Weblate there is a dedicated push user registered on GitHub, Bitbucket
-and GitLab (with username :guilabel:`weblate` and named
-:guilabel:`Weblate push user`). You need to add this user as a collabolator and
-give him permissions to push to your repository. Let us know when you've done
+and GitLab (with username :guilabel:`weblate` named
+:guilabel:`Weblate push user`). You need to add this user as a collaborator and
+give it permission to push to your repository. Let us know when you've done
 so and we will enable pushing changes from Hosted Weblate for you.
 
 .. _merge-rebase:
@@ -219,7 +250,7 @@ history with fewer merge commits.
 
 .. note::
 
-    Rebasing can cause you troubles in case of complicated merges, so carefully
+    Rebasing can cause you trouble in case of complicated merges, so carefully
     consider whether or not you want to enable them.
 
 Interacting with others
@@ -227,8 +258,8 @@ Interacting with others
 
 Weblate makes it easy to interact with others using its API.
 
-.. seealso:: 
-   
+.. seealso::
+
    :ref:`api`
 
 .. _lazy-commit:
@@ -239,29 +270,30 @@ Lazy commits
 The behaviour of Weblate is to group commits from the same author into one
 commit if possible. This greatly reduces the number of commits, however you
 might need to explicitly tell it to do the commits in case you want to get the
-VCS repository in sync, eg. for merge (this is by default allowed for Managers
+VCS repository in sync, e.g. for merge (this is by default allowed for the Managers
 group, see :ref:`privileges`).
 
-The changes are in this mode committed once any of following conditions is
+The changes in this mode are committed once any of the following conditions are
 fulfilled:
 
-* somebody else changes already changed string
-* a merge from upstream occurs
-* import of translation happens
-* mass state change is performed
-* search and replace is executed
-* translation for a language is completed
-* explicit commit is requested
+* Somebody else changes an already changed string.
+* A merge from upstream occurs.
+* An explicit commit is requested.
+* Change is older than period defined as :guilabel:`Age of changes to commit` on :ref:`component`.
 
-You can also additionally set a cron job to commit pending changes after some
-delay, see :djadmin:`commit_pending` and :ref:`production-cron`.
+If you want to commit changes more frequently and without checking of age, you
+can schedule a regular task to perform a commit:
+
+.. literalinclude:: ../../examples/beat-settings.py
+    :language: python
+    :encoding: utf-8
 
 .. _processing:
 
 Processing repository with scripts
 ----------------------------------
 
-The way to customize how Weblate interacts with the repository are
-:ref:`addons`. See :ref:`addon-script` for infomrmation how to execute
+The way to customize how Weblate interacts with the repository is
+:ref:`addons`. Consult :ref:`addon-script` for info on how to execute
 external scripts through addons.
 

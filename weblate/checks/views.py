@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -29,7 +29,7 @@ from django.db.models import Count
 from weblate.checks.models import Check
 from weblate.checks import CHECKS
 from weblate.trans.models import Unit
-from weblate.trans.views.helper import get_project, get_component
+from weblate.utils.views import get_project, get_component
 from weblate.trans.util import redirect_param
 
 

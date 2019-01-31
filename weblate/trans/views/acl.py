@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -32,7 +32,7 @@ from weblate.trans.forms import (
     UserManageForm, ProjectAccessForm, DisabledProjectAccessForm,
 )
 from weblate.trans.models import Change
-from weblate.trans.views.helper import get_project
+from weblate.utils.views import get_project
 
 
 def check_user_form(request, project, verbose=False):

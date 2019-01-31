@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -21,17 +21,18 @@
 """Test for management commands."""
 
 from unittest import SkipTest
+import sys
 
 from six import StringIO
 
-from django.test import TestCase
+from django.test import SimpleTestCase
 from django.core.management import call_command
-from django.core.management.base import CommandError
+from django.core.management.base import CommandError, SystemCheckError
 
 from weblate.trans.tests.test_models import RepoTestCase
-from weblate.trans.models import (
-    Translation, Component, Suggestion, IndexUpdate
-)
+from weblate.trans.tests.test_views import ViewTestCase
+from weblate.trans.models import Translation, Component, Suggestion, Source
+from weblate.trans.search import Fulltext
 from weblate.runner import main
 from weblate.trans.tests.utils import get_test_file, create_test_user
 from weblate.vcs.mercurial import HgRepository
@@ -39,11 +40,18 @@ from weblate.accounts.models import Profile
 
 TEST_PO = get_test_file('cs.po')
 TEST_COMPONENTS = get_test_file('components.json')
+TEST_COMPONENTS_INVALID = get_test_file('components-invalid.json')
 
 
-class RunnerTest(TestCase):
+class RunnerTest(SimpleTestCase):
     def test_help(self):
-        main(['help'])
+        restore = sys.stdout
+        try:
+            sys.stdout = StringIO()
+            main(['help'])
+            self.assertIn('list_versions', sys.stdout.getvalue())
+        finally:
+            sys.stdout = restore
 
 
 class ImportProjectTest(RepoTestCase):
@@ -336,7 +344,9 @@ class ImportProjectTest(RepoTestCase):
         )
 
 
-class BasicCommandTest(TestCase):
+class BasicCommandTest(SimpleTestCase):
+    allow_database_queries = True
+
     def test_versions(self):
         output = StringIO()
         call_command(
@@ -345,69 +355,44 @@ class BasicCommandTest(TestCase):
         )
         self.assertIn('Weblate', output.getvalue())
 
+    def test_check(self):
+        with self.assertRaises(SystemCheckError):
+            call_command(
+                'check',
+                '--deploy',
+            )
 
-class PeriodicCommandTest(RepoTestCase):
-    def setUp(self):
-        super(PeriodicCommandTest, self).setUp()
-        self.component = self.create_component()
 
+class CleanupCommandTest(RepoTestCase):
     def test_cleanup(self):
-        Suggestion.objects.create(
-            project=self.component.project,
-            content_hash=1,
-            language=self.component.translation_set.all()[0].language,
-        )
-        call_command(
-            'cleanuptrans'
-        )
-        self.assertEqual(
-            Suggestion.objects.count(), 0
-        )
-
-    def test_update_index_empty(self):
-        output = StringIO()
-        call_command(
-            'update_index',
-            stdout=output
-        )
-        self.assertEqual('', output.getvalue())
-
-    def test_update_index(self):
-        IndexUpdate.objects.create(
-            unitid=666,
-            language_code='fo',
-            to_delete=False,
-            source=False,
-        )
-        IndexUpdate.objects.create(
-            unitid=777,
-            language_code='fo',
-            to_delete=False,
-            source=False,
-        )
-        IndexUpdate.objects.create(
-            unitid=888,
-            language_code='fo',
-            to_delete=False,
-            source=True,
-        )
-        output = StringIO()
-        call_command(
-            'update_index',
-            stdout=output
-        )
-        self.assertEqual('', output.getvalue())
+        orig_fake = Fulltext.FAKE
+        Fulltext.FAKE = False
+        fulltext = Fulltext()
+        try:
+            component = self.create_component()
+            index = fulltext.get_source_index()
+            self.assertEqual(len(list(index.reader().all_stored_fields())), 12)
+            # Create dangling suggestion
+            Suggestion.objects.create(
+                project=component.project,
+                content_hash=1,
+                language=component.translation_set.all()[0].language,
+            )
+            # Remove all translations
+            Translation.objects.all().delete()
+            call_command('cleanuptrans')
+            self.assertEqual(Suggestion.objects.count(), 0)
+            self.assertEqual(Source.objects.count(), 0)
+            self.assertEqual(len(list(index.reader().all_stored_fields())), 0)
+        finally:
+            Fulltext.FAKE = orig_fake
 
 
-class CheckGitTest(RepoTestCase):
+class CheckGitTest(ViewTestCase):
     """Base class for handling tests of WeblateComponentCommand
     based commands."""
     command_name = 'checkgit'
     expected_string = 'On branch master'
-
-    def setUp(self):
-        super(CheckGitTest, self).setUp()
-        self.create_component()
 
     def do_test(self, *args, **kwargs):
         output = StringIO()
@@ -456,6 +441,18 @@ class CommitPendingTest(CheckGitTest):
     command_name = 'commit_pending'
     expected_string = ''
 
+    def test_age(self):
+        self.do_test('test', '--age', '1')
+
+
+class CommitPendingChangesTest(CommitPendingTest):
+    def setUp(self):
+        super(CommitPendingChangesTest, self).setUp()
+        self.edit_unit(
+            'Hello, world!\n',
+            'Nazdar svete!\n'
+        )
+
 
 class CommitGitTest(CheckGitTest):
     command_name = 'commitgit'
@@ -491,6 +488,15 @@ class RebuildIndexTest(CheckGitTest):
             all=True,
             clean=True,
         )
+
+    def test_optimize(self):
+        self.expected_string = ''
+        try:
+            self.do_test(
+                optimize=True,
+            )
+        finally:
+            self.expected_string = 'Processing'
 
 
 class LockTranslationTest(CheckGitTest):
@@ -601,12 +607,12 @@ class SuggestionCommandTest(RepoTestCase):
         self.assertEqual(profile.suggested, 1)
 
     def test_missing_user(self):
-        self.assertRaises(
-            CommandError,
-            call_command,
+        call_command(
             'add_suggestions', 'test', 'test', 'cs', TEST_PO,
             author='foo@example.org',
         )
+        profile = Profile.objects.get(user__email='foo@example.org')
+        self.assertEqual(profile.suggested, 1)
 
     def test_missing_project(self):
         self.assertRaises(
@@ -643,6 +649,14 @@ class ImportCommandTest(RepoTestCase):
             'Imported Test/Gettext PO with 3 translations',
             output.getvalue()
         )
+
+    def test_import_invalid(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                'import_json',
+                '--project', 'test',
+                TEST_COMPONENTS_INVALID,
+            )
 
     def test_import_twice(self):
         call_command(

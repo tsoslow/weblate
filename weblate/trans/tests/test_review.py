@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -36,7 +36,7 @@ class ReviewTest(ViewTestCase):
         unit = self.get_unit()
         unit.target = 'Ahoj svete!\n'
         unit.state = STATE_APPROVED
-        unit.save(backend=True)
+        unit.save()
 
     def check_result(self, fail):
         unit = self.get_unit()

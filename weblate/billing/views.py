@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -18,12 +18,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-import os.path
-
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, render, redirect
 from django.http import HttpResponse, Http404
 
 from weblate.billing.models import Invoice, Billing
@@ -37,21 +34,19 @@ def download_invoice(request, pk):
     if not invoice.ref:
         raise Http404('No reference!')
 
-    permissions = [
-        request.user.has_perm('billing.view', p)
-        for p in invoice.billing.projects.all()
-    ]
+    allowed_billing = Billing.objects.for_user(
+        request.user
+    ).filter(
+        pk=invoice.billing.pk
+    )
 
-    if not any(permissions):
+    if not allowed_billing.exists():
         raise PermissionDenied('Not an owner!')
 
-    filename = invoice.filename
-    path = os.path.join(settings.INVOICE_PATH, filename)
+    if not invoice.filename_valid:
+        raise Http404('File {0} does not exist!'.format(invoice.filename))
 
-    if not os.path.exists(path):
-        raise Http404('File {0} does not exist!'.format(filename))
-
-    with open(path, 'rb') as handle:
+    with open(invoice.full_filename, 'rb') as handle:
         data = handle.read()
 
     response = HttpResponse(
@@ -59,16 +54,41 @@ def download_invoice(request, pk):
         content_type='application/pdf'
     )
     response['Content-Disposition'] = 'attachment; filename={0}'.format(
-        filename
+        invoice.filename
     )
     response['Content-Length'] = len(data)
 
     return response
 
 
+def handle_post(request, billings):
+    def get(name):
+        try:
+            return int(request.POST[name])
+        except (KeyError, ValueError):
+            return None
+
+    recurring = get('recurring')
+    terminate = get('terminate')
+    if not recurring and not terminate:
+        return
+    try:
+        billing = billings.get(pk=recurring or terminate)
+    except Billing.DoesNotExist:
+        return
+    if recurring:
+        if 'recurring' in billing.payment:
+            del billing.payment['recurring']
+        billing.save()
+    elif terminate:
+        billing.state = Billing.STATE_TERMINATED
+        billing.save()
+
+
 @login_required
 def overview(request):
-    billings = Billing.objects.filter(
-        projects__in=request.user.projects_with_perm('billing.view')
-    ).distinct()
+    billings = Billing.objects.for_user(request.user)
+    if request.method == 'POST':
+        handle_post(request, billings)
+        return redirect('billing')
     return render(request, 'billing/overview.html', {'billings': billings})

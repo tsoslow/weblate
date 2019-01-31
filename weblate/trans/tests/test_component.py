@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -25,7 +25,8 @@ import shutil
 
 from django.core.exceptions import ValidationError
 
-from weblate.formats import ParseError
+from weblate.checks.models import Check
+from weblate.trans.exceptions import FileParseError
 from weblate.trans.models import (
     Project, Component, Unit, Suggestion,
 )
@@ -37,15 +38,9 @@ from weblate.utils.state import STATE_TRANSLATED
 class ComponentTest(RepoTestCase):
     """Component object testing."""
     def verify_component(self, component, translations, lang=None, units=0,
-                         unit='Hello, world!\n', fail=False):
+                         unit='Hello, world!\n'):
         # Validation
-        if fail:
-            self.assertRaises(
-                ValidationError,
-                component.full_clean
-            )
-        else:
-            component.full_clean()
+        component.full_clean()
         # Correct path
         self.assertTrue(os.path.exists(component.full_path))
         # Count translations
@@ -61,36 +56,40 @@ class ComponentTest(RepoTestCase):
             self.assertTrue(translation.unit_set.filter(source=unit).exists())
 
         if component.has_template() and component.edit_template:
-            translation = component.translation_set.get(filename=component.template)
+            translation = component.translation_set.get(
+                filename=component.template
+            )
             # Count units in it
             self.assertEqual(translation.unit_set.count(), units)
             # Count translated units in it
             self.assertEqual(
-                translation.unit_set.filter(state__gte=STATE_TRANSLATED).count(),
+                translation.unit_set.filter(
+                    state__gte=STATE_TRANSLATED
+                ).count(),
                 units
             )
 
     def test_create(self):
-        project = self.create_component()
-        self.verify_component(project, 3, 'cs', 4)
-        self.assertTrue(os.path.exists(project.full_path))
+        component = self.create_component()
+        self.verify_component(component, 3, 'cs', 4)
+        self.assertTrue(os.path.exists(component.full_path))
 
     def test_create_dot(self):
-        project = self._create_component(
+        component = self._create_component(
             'auto',
             './po/*.po',
         )
-        self.verify_component(project, 3, 'cs', 4)
-        self.assertTrue(os.path.exists(project.full_path))
-        self.assertEqual('po/*.po', project.filemask)
+        self.verify_component(component, 3, 'cs', 4)
+        self.assertTrue(os.path.exists(component.full_path))
+        self.assertEqual('po/*.po', component.filemask)
 
     def test_create_iphone(self):
-        project = self.create_iphone()
-        self.verify_component(project, 1, 'cs', 4)
+        component = self.create_iphone()
+        self.verify_component(component, 1, 'cs', 4)
 
     def test_create_ts(self):
-        project = self.create_ts('-translated')
-        self.verify_component(project, 1, 'cs', 4)
+        component = self.create_ts('-translated')
+        self.verify_component(component, 1, 'cs', 4)
 
         unit = Unit.objects.get(source__startswith='Orangutan')
         self.assertTrue(unit.is_plural())
@@ -110,190 +109,194 @@ class ComponentTest(RepoTestCase):
         self.assertEqual(unit.target, 'Thanks')
 
     def test_create_ts_mono(self):
-        project = self.create_ts_mono()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_ts_mono()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_po_pot(self):
-        project = self._create_component(
+        component = self._create_component(
             'po',
             'po/*.po',
-            'po/project.pot'
+            new_base='po/project.pot'
         )
-        self.verify_component(project, 3, 'cs', 4, fail=True)
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_filtered(self):
-        project = self._create_component(
+        component = self._create_component(
             'po',
             'po/*.po',
             language_regex='^cs$',
         )
-        self.verify_component(project, 1, 'cs', 4)
+        self.verify_component(component, 1, 'cs', 4)
 
     def test_create_auto_pot(self):
-        project = self._create_component(
+        component = self._create_component(
             'auto',
             'po/*.po',
-            'po/project.pot'
+            new_base='po/project.pot'
         )
-        self.verify_component(project, 3, 'cs', 4, fail=True)
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_po(self):
-        project = self.create_po()
-        self.verify_component(project, 3, 'cs', 4)
+        component = self.create_po()
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_po_mercurial(self):
-        project = self.create_po_mercurial()
-        self.verify_component(project, 3, 'cs', 4)
+        component = self.create_po_mercurial()
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_po_branch(self):
-        project = self.create_po_branch()
-        self.verify_component(project, 3, 'cs', 4)
+        component = self.create_po_branch()
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_po_push(self):
-        project = self.create_po_push()
-        self.verify_component(project, 3, 'cs', 4)
+        component = self.create_po_push()
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_po_svn(self):
-        project = self.create_po_svn()
-        self.verify_component(project, 3, 'cs', 4)
+        component = self.create_po_svn()
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_po_empty(self):
-        project = self.create_po_empty()
-        self.verify_component(project, 0)
+        component = self.create_po_empty()
+        self.verify_component(component, 0)
 
     def test_create_po_link(self):
-        project = self.create_po_link()
-        self.verify_component(project, 4, 'cs', 4)
+        component = self.create_po_link()
+        self.verify_component(component, 4, 'cs', 4)
 
     def test_create_po_mono(self):
-        project = self.create_po_mono()
-        self.verify_component(project, 4, 'cs', 4)
+        component = self.create_po_mono()
+        self.verify_component(component, 4, 'cs', 4)
 
     def test_create_android(self):
-        project = self.create_android()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_android()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_json(self):
-        project = self.create_json()
-        self.verify_component(project, 1, 'cs', 4)
+        component = self.create_json()
+        self.verify_component(component, 1, 'cs', 4)
 
     def test_create_json_mono(self):
-        project = self.create_json_mono()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_json_mono()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_json_nested(self):
-        project = self.create_json_mono(suffix='nested')
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_json_mono(suffix='nested')
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_json_webextension(self):
-        project = self.create_json_webextension()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_json_webextension()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_joomla(self):
-        project = self.create_joomla()
-        self.verify_component(project, 3, 'cs', 4)
+        component = self.create_joomla()
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_tsv_simple(self):
-        project = self._create_component(
+        component = self._create_component(
             'csv-simple',
             'tsv/*.txt',
         )
-        self.verify_component(project, 1, 'cs', 4, 'Hello, world!')
+        self.verify_component(component, 1, 'cs', 4, 'Hello, world!')
 
     def test_create_tsv_simple_iso(self):
-        project = self._create_component(
+        component = self._create_component(
             'csv-simple-iso',
             'tsv/*.txt',
         )
-        self.verify_component(project, 1, 'cs', 4, 'Hello, world!')
+        self.verify_component(component, 1, 'cs', 4, 'Hello, world!')
 
     def test_create_csv(self):
-        project = self.create_csv()
-        self.verify_component(project, 1, 'cs', 4)
+        component = self.create_csv()
+        self.verify_component(component, 1, 'cs', 4)
 
     def test_create_csv_mono(self):
-        project = self.create_csv_mono()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_csv_mono()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_php_mono(self):
-        project = self.create_php_mono()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_php_mono()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_tsv(self):
-        project = self.create_tsv()
-        self.verify_component(project, 1, 'cs', 4, 'Hello, world!')
+        component = self.create_tsv()
+        self.verify_component(component, 1, 'cs', 4, 'Hello, world!')
 
     def test_create_java(self):
-        project = self.create_java()
-        self.verify_component(project, 3, 'cs', 4)
+        component = self.create_java()
+        self.verify_component(component, 3, 'cs', 4)
 
     def test_create_xliff(self):
-        project = self.create_xliff()
-        self.verify_component(project, 1, 'cs', 4)
+        component = self.create_xliff()
+        self.verify_component(component, 1, 'cs', 4)
 
     def test_create_xliff_complex(self):
-        project = self.create_xliff('complex')
-        self.verify_component(project, 1, 'cs', 4)
+        component = self.create_xliff('complex')
+        self.verify_component(component, 1, 'cs', 4)
 
     def test_create_xliff_mono(self):
-        project = self.create_xliff_mono()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_xliff_mono()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_xliff_dph(self):
-        project = self.create_xliff('DPH')
-        self.verify_component(project, 1, 'en', 9, 'DPH')
+        component = self.create_xliff('DPH')
+        self.verify_component(component, 1, 'en', 9, 'DPH')
 
     def test_create_xliff_empty(self):
-        project = self.create_xliff('EMPTY')
-        self.verify_component(project, 1, 'en', 6, 'DPH')
+        component = self.create_xliff('EMPTY')
+        self.verify_component(component, 1, 'en', 6, 'DPH')
 
     def test_create_xliff_resname(self):
-        project = self.create_xliff('Resname')
-        self.verify_component(project, 1, 'en', 2, 'Hi')
+        component = self.create_xliff('Resname')
+        self.verify_component(component, 1, 'en', 2, 'Hi')
+
+    def test_create_xliff_only_resname(self):
+        component = self.create_xliff('only-resname')
+        self.verify_component(component, 1, 'cs', 4)
 
     def test_create_resx(self):
-        project = self.create_resx()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_resx()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_yaml(self):
-        project = self.create_yaml()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_yaml()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_ruby_yaml(self):
-        project = self.create_ruby_yaml()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_ruby_yaml()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_create_dtd(self):
-        project = self.create_dtd()
-        self.verify_component(project, 2, 'cs', 4)
+        component = self.create_dtd()
+        self.verify_component(component, 2, 'cs', 4)
 
     def test_link(self):
-        project = self.create_link()
-        self.verify_component(project, 3, 'cs', 4)
+        component = self.create_link()
+        self.verify_component(component, 3, 'cs', 4)
 
-    def test_check_flags(self):
-        """Check flags validation."""
-        project = self.create_component()
-        project.full_clean()
+    def test_flags(self):
+        """Translation flags validation."""
+        component = self.create_component()
+        component.full_clean()
 
-        project.check_flags = 'ignore-inconsistent'
-        project.full_clean()
+        component.check_flags = 'ignore-inconsistent'
+        component.full_clean()
 
-        project.check_flags = 'rst-text,ignore-inconsistent'
-        project.full_clean()
+        component.check_flags = 'rst-text,ignore-inconsistent'
+        component.full_clean()
 
-        project.check_flags = 'nonsense'
+        component.check_flags = 'nonsense'
         self.assertRaisesMessage(
             ValidationError,
-            'Invalid check flag: "nonsense"',
-            project.full_clean
+            'Invalid translation flag: "nonsense"',
+            component.full_clean
         )
 
-        project.check_flags = 'rst-text,ignore-nonsense'
+        component.check_flags = 'rst-text,ignore-nonsense'
         self.assertRaisesMessage(
             ValidationError,
-            'Invalid check flag: "ignore-nonsense"',
-            project.full_clean
+            'Invalid translation flag: "ignore-nonsense"',
+            component.full_clean
         )
 
     def test_lang_code_template(self):
@@ -306,43 +309,52 @@ class ComponentTest(RepoTestCase):
         )
 
     def test_switch_branch(self):
-        project = self.create_po()
+        component = self.create_po()
         # Switch to translation branch
-        self.verify_component(project, 3, 'cs', 4)
-        project.branch = 'translations'
-        project.filemask = 'translations/*.po'
-        project.clean()
-        project.save()
-        self.verify_component(project, 3, 'cs', 4)
+        self.verify_component(component, 3, 'cs', 4)
+        component.branch = 'translations'
+        component.filemask = 'translations/*.po'
+        component.clean()
+        component.save()
+        self.verify_component(component, 3, 'cs', 4)
         # Switch back to master branch
-        project.branch = 'master'
-        project.filemask = 'po/*.po'
-        project.clean()
-        project.save()
-        self.verify_component(project, 3, 'cs', 4)
+        component.branch = 'master'
+        component.filemask = 'po/*.po'
+        component.clean()
+        component.save()
+        self.verify_component(component, 3, 'cs', 4)
+
+    def test_update_checks(self):
+        """Setting of check_flags changes checks for related units."""
+        component = self.create_component()
+        self.assertEqual(Check.objects.count(), 3)
+        check = Check.objects.all()[0]
+        component.check_flags = 'ignore-{0}'.format(check.check)
+        component.save()
+        self.assertEqual(Check.objects.count(), 0)
 
 
 class ComponentDeleteTest(RepoTestCase):
     """Component object deleting testing."""
     def test_delete(self):
-        project = self.create_component()
-        self.assertTrue(os.path.exists(project.full_path))
-        project.delete()
-        self.assertFalse(os.path.exists(project.full_path))
+        component = self.create_component()
+        self.assertTrue(os.path.exists(component.full_path))
+        component.delete()
+        self.assertFalse(os.path.exists(component.full_path))
         self.assertEqual(0, Component.objects.count())
 
     def test_delete_link(self):
-        project = self.create_link()
+        component = self.create_link()
         main_project = Component.objects.get(slug='test')
         self.assertTrue(os.path.exists(main_project.full_path))
-        project.delete()
+        component.delete()
         self.assertTrue(os.path.exists(main_project.full_path))
 
     def test_delete_all(self):
-        project = self.create_component()
-        self.assertTrue(os.path.exists(project.full_path))
+        component = self.create_component()
+        self.assertTrue(os.path.exists(component.full_path))
         Component.objects.all().delete()
-        self.assertFalse(os.path.exists(project.full_path))
+        self.assertFalse(os.path.exists(component.full_path))
 
 
 class ComponentChangeTest(RepoTestCase):
@@ -356,10 +368,16 @@ class ComponentChangeTest(RepoTestCase):
 
         old_path = component.full_path
         self.assertTrue(os.path.exists(old_path))
+        self.assertTrue(os.path.exists(
+            component.translation_set.all()[0].get_filename()
+        ))
         component.slug = 'changed'
         component.save()
         self.assertFalse(os.path.exists(old_path))
         self.assertTrue(os.path.exists(component.full_path))
+        self.assertTrue(os.path.exists(
+            component.translation_set.all()[0].get_filename()
+        ))
 
         self.assertTrue(
             Component.objects.filter(repo='weblate://test/changed').exists()
@@ -428,10 +446,8 @@ class ComponentValidationTest(RepoTestCase):
     def test_commit_message(self):
         """Invalid commit message"""
         self.component.commit_message = '{% if %}'
-        self.assertRaises(
-            ValidationError,
-            self.component.full_clean
-        )
+        with self.assertRaises(ValidationError):
+            self.component.full_clean()
 
     def test_filemask(self):
         """Invalid mask"""
@@ -518,25 +534,26 @@ class ComponentValidationTest(RepoTestCase):
 
     def test_validation_languge_re(self):
         self.component.language_regex = '[-'
-        self.assertRaises(
-            ValidationError,
-            self.component.full_clean
-        )
+        with self.assertRaises(ValidationError):
+            self.component.full_clean()
 
     def test_validation_newlang(self):
         self.component.new_base = 'po/project.pot'
         self.component.save()
 
+        self.component.full_clean()
         # Check that it warns about unused pot
-        self.assertRaisesMessage(
-            ValidationError,
-            'Base file for new translations is not used '
-            'because of component settings.',
-            self.component.full_clean
+        self.assertTrue(
+            self.component.alert_set.filter(name='UnusedNewBase').exists()
         )
 
         self.component.new_lang = 'add'
         self.component.save()
+
+        # The alert should be gone
+        self.assertFalse(
+            self.component.alert_set.filter(name='UnusedNewBase').exists()
+        )
 
         # Check that it doesn't warn about not supported format
         self.component.full_clean()
@@ -642,40 +659,29 @@ class ComponentErrorTest(RepoTestCase):
         # Clean class cache, pylint: disable=protected-access
         del self.component.__dict__['template_store']
 
-        self.assertRaises(
-            ParseError,
-            lambda: self.component.template_store
-        )
-        self.assertRaises(
-            ValidationError,
-            self.component.clean
-        )
+        with self.assertRaises(FileParseError):
+            self.component.template_store
+
+        with self.assertRaises(ValidationError):
+            self.component.clean()
 
     def test_invalid_filename(self):
         translation = self.component.translation_set.get(language_code='cs')
         translation.filename = 'foo.bar'
-        self.assertRaises(
-            ParseError,
-            lambda: translation.store
-        )
-        self.assertRaises(
-            ValidationError,
-            translation.clean
-        )
+        with self.assertRaises(FileParseError):
+            translation.store
+        with self.assertRaises(ValidationError):
+            translation.clean()
 
     def test_invalid_storage(self):
         testfile = os.path.join(self.component.full_path, 'ts-mono', 'cs.ts')
         with open(testfile, 'a') as handle:
             handle.write('CHANGE')
         translation = self.component.translation_set.get(language_code='cs')
-        self.assertRaises(
-            ParseError,
-            lambda: translation.store
-        )
-        self.assertRaises(
-            ValidationError,
-            translation.clean
-        )
+        with self.assertRaises(FileParseError):
+            translation.store
+        with self.assertRaises(ValidationError):
+            translation.clean()
 
     def test_invalid_template_storage(self):
         testfile = os.path.join(self.component.full_path, 'ts-mono', 'en.ts')
@@ -685,14 +691,10 @@ class ComponentErrorTest(RepoTestCase):
         # Clean class cache, pylint: disable=protected-access
         del self.component.__dict__['template_store']
 
-        self.assertRaises(
-            ParseError,
-            lambda: self.component.template_store
-        )
-        self.assertRaises(
-            ValidationError,
-            self.component.clean
-        )
+        with self.assertRaises(FileParseError):
+            self.component.template_store
+        with self.assertRaises(ValidationError):
+            self.component.clean()
 
 
 class ComponentEditTest(ViewTestCase):

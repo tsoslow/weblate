@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -29,7 +29,7 @@ from weblate.lang.models import Language
 from weblate.trans.forms import EngageForm
 from weblate.trans.models import Component
 from weblate.trans.widgets import WIDGETS
-from weblate.trans.views.helper import (
+from weblate.utils.views import (
     get_project, get_component, try_set_language,
 )
 from weblate.trans.util import render

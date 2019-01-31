@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -22,7 +22,8 @@ from weblate.trans.management.commands import WeblateComponentCommand
 
 
 class Command(WeblateComponentCommand):
-    help = 'pushes all changes to upstream respository'
+    help = 'pushes all changes to upstream repository'
+    needs_repo = True
 
     def add_arguments(self, parser):
         super(Command, self).add_arguments(parser)
@@ -31,7 +32,7 @@ class Command(WeblateComponentCommand):
             action='store_true',
             dest='force_commit',
             default=False,
-            help='Forces commiting pending changes'
+            help='Forces committing pending changes'
         )
 
     def handle(self, *args, **options):

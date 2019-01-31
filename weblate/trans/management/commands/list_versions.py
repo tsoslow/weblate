@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -44,6 +44,13 @@ class Command(BaseCommand):
             ', '.join(
                 '{}:{}'.format(key, value['BACKEND'].split('.')[-1])
                 for key, value in settings.CACHES.items()
+            )
+        )
+        self.stdout.write(
+            ' * Celery: {}, {}, {}'.format(
+                getattr(settings, 'CELERY_BROKER_URL', 'N/A'),
+                getattr(settings, 'CELERY_RESULT_BACKEND', 'N/A'),
+                'eager' if settings.CELERY_TASK_ALWAYS_EAGER else 'regular',
             )
         )
         self.stdout.write(

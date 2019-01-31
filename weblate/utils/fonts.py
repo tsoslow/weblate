@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -24,7 +24,6 @@ import os.path
 
 from django.conf import settings
 from django.core.checks import Error
-from django.core.exceptions import ImproperlyConfigured
 
 from PIL import ImageFont
 

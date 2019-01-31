@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -27,7 +27,7 @@ from django.views.decorators.cache import never_cache
 from weblate.trans.forms import ContributorAgreementForm
 from weblate.trans.models import ContributorAgreement
 from weblate.trans.util import redirect_next
-from weblate.trans.views.helper import get_component
+from weblate.utils.views import get_component
 
 
 @never_cache

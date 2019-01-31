@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -479,6 +479,7 @@ SAME_BLACKLIST = frozenset((
     'options',
     'orange',
     'orientation',
+    'original',
     'osm',
     'osmand',
     'output',
@@ -500,6 +501,7 @@ SAME_BLACKLIST = frozenset((
     'paypal',
     'pdf',
     'pdu',
+    'per',
     'percent',
     'perfume',
     'personal',
@@ -524,6 +526,7 @@ SAME_BLACKLIST = frozenset((
     'podcast',
     'podcasts',
     'point',
+    'points',
     'polygon',
     'polymer',
     'pool',
@@ -580,6 +583,7 @@ SAME_BLACKLIST = frozenset((
     'reset',
     'resource',
     'responsive',
+    'restart',
     'restaurant',
     'restaurants',
     'return',
@@ -753,6 +757,7 @@ SAME_BLACKLIST = frozenset((
     'views',
     'virus',
     'vorbis',
+    'volume',
     'vote',
     'votes',
     'wammu',

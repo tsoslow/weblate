@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -43,6 +43,7 @@ class MockProject(object):
     def __init__(self):
         self.id = 1
         self.source_language = MockLanguage('en')
+        self.use_shared_tm = True
 
 
 class MockComponent(object):

@@ -4,7 +4,8 @@ Version control integration
 ===========================
 
 Weblate currently supports :ref:`vcs-git` (with extended support for
-:ref:`vcs-github`) and :ref:`vcs-mercurial` as version control backends.
+:ref:`vcs-github`, :ref:`vcs-gerrit` and :ref:`vcs-git-svn`) and
+:ref:`vcs-mercurial` as version control backends.
 
 .. _vcs-repos:
 
@@ -51,10 +52,10 @@ done this, Weblate should be able to access your repository.
     well protected against malicious usage.
 
 .. warning::
-   
+
     On GitHub, you can add the key to only one repository. See the following
     sections for other solutions for GitHub.
-    
+
 Verifying SSH host keys
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -67,7 +68,7 @@ adding, the fingerprints will be displayed in the confirmation message:
 
 .. image:: images/ssh-keys-added.png
 
-   
+
 HTTPS repositories
 ++++++++++++++++++
 
@@ -75,7 +76,7 @@ To access protected HTTPS repositories, you need to include the username and pas
 in the URL. Don't worry, Weblate will strip this information when showing the URL
 to the users (if they are allowed to see the repository URL at all).
 
-For example the GitHub URL with authentication might look like 
+For example the GitHub URL with authentication might look like
 ``https://user:your_access_token@github.com/WeblateOrg/weblate.git``.
 
 .. note::
@@ -100,13 +101,13 @@ or by enforcing it in VCS configuration, for example:
 
 .. note::
 
-    The proxy setting needs to be done in the same context which is used to execute
-    Weblate. For the environment it should be set for both server and cron
-    jobs. The VCS configuration has to be set for the user which is running
-    Weblate.
+    The proxy setting needs to be done in the same context which is used to
+    execute Weblate. For the environment it should be set for both wsgi and
+    Celery servers. The VCS configuration has to be set for the user which is
+    running Weblate.
 
-.. seealso:: 
-   
+.. seealso::
+
     `curl manpage <https://curl.haxx.se/docs/manpage.html>`_,
     `git config documentation <https://git-scm.com/docs/git-config>`_
 
@@ -119,8 +120,8 @@ Git
 Git is first VCS backend that was available in Weblate and is still the most
 stable and tested one.
 
-.. seealso:: 
-   
+.. seealso::
+
     See :ref:`vcs-repos` for information how to access different kind of
     repositories.
 
@@ -174,7 +175,7 @@ For ``hello`` repository from selenic.com with Mercurial use::
 
 .. warning::
 
-    Please be prepared to some incovenience when using Git remote helpers,
+    Please be prepared to some inconvenience when using Git remote helpers,
     for example with Mercurial, the remote helper sometimes tends to create new
     tip when pushing changes back.
 
@@ -191,7 +192,7 @@ It currently uses the `hub`_ tool to do the integration.
 
 There is no need to use this to access Git repositories, ordinary
 :ref:`vcs-git` works the same, the only difference is how pushing to a repository is
-handled. With :ref:`vcs-git` changes are pushed directly to the repository, while 
+handled. With :ref:`vcs-git` changes are pushed directly to the repository, while
 :ref:`vcs-github` creates pull requests.
 
 .. _github-push:
@@ -205,8 +206,8 @@ push translations to the repository, you can have them sent as a pull request in
 You need to configure the `hub`_ command line tool and set
 :setting:`GITHUB_USERNAME` for this to work.
 
-.. seealso:: 
-   
+.. seealso::
+
    :setting:`GITHUB_USERNAME`, :ref:`hub-setup` for configuration instructions
 
 .. _hub-setup:
@@ -231,6 +232,22 @@ store it into :file:`~/.config/hub`.
 
 .. _hub: https://hub.github.com/
 
+.. _vcs-gerrit:
+
+Gerrit
+------
+
+.. versionadded:: 2.2
+
+Adds a thin layer atop :ref:`vcs-git` to allow pushing translation
+changes as Gerrit review requests, instead of pushing a directory to the repository.
+Currently uses the `git-review`_ tool to do the integration.
+
+Please refer to the Gerrit documentation for setting up the repository with
+necessary configuration.
+
+.. _git-review: https://pypi.org/project/git-review/
+
 .. _vcs-mercurial:
 
 Mercurial
@@ -238,15 +255,15 @@ Mercurial
 
 .. versionadded:: 2.1
 
-Mercurial is another VCS you can use directly in Weblate. 
+Mercurial is another VCS you can use directly in Weblate.
 
-.. note:: 
-   
+.. note::
+
     It should work with any Mercurial version, but there are sometimes
     incompatible changes to the command line interface which break Weblate.
 
-.. seealso:: 
-   
+.. seealso::
+
     See :ref:`vcs-repos` for information how to access different kind of
     repositories.
 

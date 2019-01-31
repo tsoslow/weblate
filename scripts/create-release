@@ -20,8 +20,9 @@ tarver=Weblate-$version
 # What are we going to build?
 if [ "x$1" = "x--tag" ] ; then
     sed -i "s/^VERSION =.*/VERSION = '$version'/" weblate/__init__.py
+    sed -i "s/weblate-[0-9.]\\+/weblate-$version/" docs/admin/deployments.rst
     if ! git diff --exit-code --quiet ; then
-        git commit -s -m "Releasing $version" -- weblate/__init__.py
+        git commit -s -m "Releasing $version" -- weblate/__init__.py docs/admin/deployments.rst
     fi
     rev=$namever
     git tag -s $rev -m "Version $version"
@@ -33,22 +34,22 @@ fi
 # Compile po files
 ./scripts/generate-locales
 
-if [ "x$1" = "x--tag" ] ; then
-    # PyPi archive
-    fakeroot ./setup.py sdist upload
-    # Create Wheel
-    # Skipped for now as it tends to include even files not in dist
-    #    fakeroot ./setup.py bdist_wheel --universal upload
-else
-    # Create tarball
-    fakeroot ./setup.py sdist
-fi
+# Create tarballs
+fakeroot ./setup.py sdist
 
-# Build tarballs
+# Recompress tarballs
 zcat dist/$tarver.tar.gz | xz > dist/$tarver.tar.xz
 zcat dist/$tarver.tar.gz | bzip2 > dist/$tarver.tar.bz2
 
+# Upload release
 if [ "x$1" = "x--tag" ] ; then
+    # PyPi archive upload
+    twine upload --sign --identity 63CB1DF1EF12CF2AC0EE5A329C27B31342B7511D dist/$tarver*.tar.gz
+
+    # Sign remaining files
+    gpg --detach-sign --armor --local-user 63CB1DF1EF12CF2AC0EE5A329C27B31342B7511D dist/$tarver*.tar.xz
+    gpg --detach-sign --armor --local-user 63CB1DF1EF12CF2AC0EE5A329C27B31342B7511D dist/$tarver*.tar.bz2
+
     # Download server
     scp dist/Weblate-$version.tar.* web:/srv/http/dl.cihar.com/weblate/
 fi

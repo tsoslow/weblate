@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -43,7 +43,7 @@ class PageLimitTest(TestCase):
 
     def test_negative(self):
         self.assertEqual(
-            (1, 42),
+            (1, 10),
             get_page_limit(fake_request('-1', '-1'), 42)
         )
 

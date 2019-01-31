@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -17,6 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+
+from __future__ import unicode_literals
 
 from random import SystemRandom
 import string
@@ -84,10 +86,14 @@ class Command(BaseCommand):
             password = None
         elif options['password']:
             password = options['password']
-            self.stdout.write('Creating user admin')
+            self.stdout.write('Creating user {}'.format(options['username']))
         else:
             password = self.make_password(13)
-            self.stdout.write('Creating user admin with password ' + password)
+            self.stdout.write(
+                'Creating user {} with password {}'.format(
+                    options['username'], password
+                )
+            )
 
         if exists and options['update']:
             user = User.objects.get(username=options['username'])

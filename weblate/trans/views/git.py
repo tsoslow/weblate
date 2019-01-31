@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -18,8 +18,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-import sys
-
 from django.utils.translation import ugettext as _
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import login_required
@@ -28,9 +26,7 @@ from django.views.decorators.http import require_POST
 from filelock import Timeout
 
 from weblate.utils import messages
-from weblate.trans.views.helper import (
-    get_project, get_component, get_translation
-)
+from weblate.utils.views import get_project, get_component, get_translation
 from weblate.trans.util import redirect_param
 from weblate.utils.errors import report_error
 
@@ -47,9 +43,7 @@ def execute_locked(request, obj, message, call, *args, **kwargs):
             request,
             _('Failed to lock the repository, another operation in progress.')
         )
-        report_error(
-            error, sys.exc_info(),
-        )
+        report_error(error, request)
 
     return redirect_param(obj, '#repository')
 
@@ -96,6 +90,17 @@ def perform_reset(request, obj):
         obj,
         _('All repositories have been reset.'),
         obj.do_reset,
+        request,
+    )
+
+
+def perform_cleanup(request, obj):
+    """Helper function to do the repository cleanup."""
+    return execute_locked(
+        request,
+        obj,
+        _('All repositories have been cleaned up.'),
+        obj.do_cleanup,
         request,
     )
 
@@ -234,16 +239,32 @@ def reset_translation(request, project, component, lang):
 
 @login_required
 @require_POST
-def remove_translation(request, project, component, lang):
-    obj = get_translation(request, project, component, lang)
+def cleanup_project(request, project):
+    obj = get_project(request, project)
 
-    if not request.user.has_perm('translation.delete', obj):
+    if not request.user.has_perm('vcs.reset', obj):
         raise PermissionDenied()
 
-    return execute_locked(
-        request,
-        obj.component,
-        _('Translation has been removed.'),
-        obj.remove,
-        user=request.user,
-    )
+    return perform_cleanup(request, obj)
+
+
+@login_required
+@require_POST
+def cleanup_component(request, project, component):
+    obj = get_component(request, project, component)
+
+    if not request.user.has_perm('vcs.reset', obj):
+        raise PermissionDenied()
+
+    return perform_cleanup(request, obj)
+
+
+@login_required
+@require_POST
+def cleanup_translation(request, project, component, lang):
+    obj = get_translation(request, project, component, lang)
+
+    if not request.user.has_perm('vcs.reset', obj):
+        raise PermissionDenied()
+
+    return perform_cleanup(request, obj)

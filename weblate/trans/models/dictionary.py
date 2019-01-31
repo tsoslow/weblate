@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -21,7 +21,6 @@
 from __future__ import unicode_literals
 
 import re
-import sys
 
 from django.urls import reverse
 from django.db import models
@@ -52,8 +51,8 @@ class DictionaryManager(models.Manager):
 
         # process all units
         for dummy, unit in store.iterate_merge(False):
-            source = unit.get_source()
-            target = unit.get_target()
+            source = unit.source
+            target = unit.target
 
             # Ignore too long words
             if len(source) > 190 or len(target) > 190:
@@ -84,7 +83,7 @@ class DictionaryManager(models.Manager):
                     continue
                 if method == 'add':
                     # Add word
-                    word = self.create(
+                    self.create(
                         user=request.user,
                         action=Change.ACTION_DICTIONARY_UPLOAD,
                         project=project,
@@ -124,7 +123,7 @@ class DictionaryManager(models.Manager):
         # - language analyzer if available (it is for English)
         analyzers = [
             SimpleAnalyzer(expression=SPLIT_RE, gaps=True),
-            LanguageAnalyzer(source_language.base_code()),
+            LanguageAnalyzer(source_language.base_code),
         ]
 
         # Add ngram analyzer for languages like Chinese or Japanese
@@ -141,8 +140,12 @@ class DictionaryManager(models.Manager):
                 try:
                     new_words = [token.text for token in analyzer(text)]
                 except (UnicodeDecodeError, IndexError) as error:
-                    report_error(error, sys.exc_info())
+                    report_error(error)
                 words.update(new_words)
+                if len(words) > 1000:
+                    break
+            if len(words) > 1000:
+                break
 
         if '' in words:
             words.remove('')

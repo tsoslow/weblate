@@ -88,3 +88,13 @@
 {% endif %}
 {% endwith %}
 {% endif %}
+
+<tr>
+<th>{% trans "File mask" %}</th><td><code>{{ object.filemask }}</code></td>
+</tr>
+
+{% if object.template %}
+<tr>
+<th>{% trans "Monolingual base language file" %}</th><td><code>{{ object.template }}</code></td>
+</tr>
+{% endif %}

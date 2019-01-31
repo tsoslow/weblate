@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -34,7 +34,7 @@ def main(argv=None):
         execute_from_command_line(argv)
     except Exception as error:
         from weblate.utils.errors import report_error
-        report_error(error, sys.exc_info())
+        report_error(error)
         raise
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -116,15 +116,6 @@ class ChangeQuerySet(models.QuerySet):
             'component__project'
         )
 
-    def for_project(self, project):
-        return self.prefetch().filter(project=project)
-
-    def for_component(self, component):
-        return self.prefetch().filter(component=component)
-
-    def for_translation(self, translation):
-        return self.prefetch().filter(translation=translation)
-
     def last_changes(self, user):
         """Prefilter Changes by ACL for users and fetches related fields
         for last changes display.
@@ -183,7 +174,7 @@ class Change(models.Model, UserDisplayMixin):
     ACTION_FAILED_MERGE = 22
     ACTION_FAILED_REBASE = 23
     ACTION_PARSE_ERROR = 24
-    ACTION_REMOVE = 25
+    ACTION_REMOVE_TRANSLATION = 25
     ACTION_SUGGESTION_DELETE = 26
     ACTION_REPLACE = 27
     ACTION_FAILED_PUSH = 28
@@ -194,6 +185,14 @@ class Change(models.Model, UserDisplayMixin):
     ACTION_ACCESS_EDIT = 33
     ACTION_ADD_USER = 34
     ACTION_REMOVE_USER = 35
+    ACTION_APPROVE = 36
+    ACTION_MARKED_EDIT = 37
+    ACTION_REMOVE_COMPONENT = 38
+    ACTION_REMOVE_PROJECT = 39
+    ACTION_DUPLICATE_LANGUAGE = 40
+    ACTION_RENAME_PROJECT = 41
+    ACTION_RENAME_COMPONENT = 42
+    ACTION_MOVE_COMPONENT = 43
 
     ACTION_CHOICES = (
         (ACTION_UPDATE, ugettext_lazy('Resource update')),
@@ -212,7 +211,7 @@ class Change(models.Model, UserDisplayMixin):
         (ACTION_NEW_SOURCE, ugettext_lazy('New source string')),
         (ACTION_LOCK, ugettext_lazy('Component locked')),
         (ACTION_UNLOCK, ugettext_lazy('Component unlocked')),
-        (ACTION_DUPLICATE_STRING, ugettext_lazy('Detected duplicate string')),
+        (ACTION_DUPLICATE_STRING, ugettext_lazy('Found duplicated string')),
         (ACTION_COMMIT, ugettext_lazy('Committed changes')),
         (ACTION_PUSH, ugettext_lazy('Pushed changes')),
         (ACTION_RESET, ugettext_lazy('Reset repository')),
@@ -222,7 +221,7 @@ class Change(models.Model, UserDisplayMixin):
         (ACTION_FAILED_REBASE, ugettext_lazy('Failed rebase on repository')),
         (ACTION_FAILED_PUSH, ugettext_lazy('Failed push on repository')),
         (ACTION_PARSE_ERROR, ugettext_lazy('Parse error')),
-        (ACTION_REMOVE, ugettext_lazy('Removed translation')),
+        (ACTION_REMOVE_TRANSLATION, ugettext_lazy('Removed translation')),
         (ACTION_SUGGESTION_DELETE, ugettext_lazy('Suggestion removed')),
         (ACTION_REPLACE, ugettext_lazy('Search and replace')),
         (
@@ -231,10 +230,18 @@ class Change(models.Model, UserDisplayMixin):
         ),
         (ACTION_SOURCE_CHANGE, ugettext_lazy('Source string changed')),
         (ACTION_NEW_UNIT, ugettext_lazy('New string added')),
-        (ACTION_MASS_STATE, ugettext_lazy('Mass state change')),
+        (ACTION_MASS_STATE, ugettext_lazy('Bulk status change')),
         (ACTION_ACCESS_EDIT, ugettext_lazy('Changed visibility')),
         (ACTION_ADD_USER, ugettext_lazy('Added user')),
         (ACTION_REMOVE_USER, ugettext_lazy('Removed user')),
+        (ACTION_APPROVE, ugettext_lazy('Translation approved')),
+        (ACTION_MARKED_EDIT, ugettext_lazy('Marked for edit')),
+        (ACTION_REMOVE_COMPONENT, ugettext_lazy('Removed component')),
+        (ACTION_REMOVE_PROJECT, ugettext_lazy('Removed project')),
+        (ACTION_DUPLICATE_LANGUAGE, ugettext_lazy('Found duplicated language')),
+        (ACTION_RENAME_PROJECT, ugettext_lazy('Renamed project')),
+        (ACTION_RENAME_COMPONENT, ugettext_lazy('Renamed component')),
+        (ACTION_MOVE_COMPONENT, ugettext_lazy('Moved component')),
     )
 
     ACTIONS_COMPONENT = frozenset((
@@ -269,6 +276,8 @@ class Change(models.Model, UserDisplayMixin):
         ACTION_REPLACE,
         ACTION_NEW_UNIT,
         ACTION_MASS_STATE,
+        ACTION_APPROVE,
+        ACTION_MARKED_EDIT,
     ))
 
     ACTIONS_REPOSITORY = frozenset((
@@ -281,6 +290,7 @@ class Change(models.Model, UserDisplayMixin):
         ACTION_FAILED_PUSH,
         ACTION_LOCK,
         ACTION_UNLOCK,
+        ACTION_DUPLICATE_LANGUAGE,
     ))
 
     ACTIONS_MERGE_FAILURE = frozenset((
@@ -409,7 +419,6 @@ class Change(models.Model, UserDisplayMixin):
             self.translation = self.unit.translation
         if self.translation:
             self.component = self.translation.component
-            self.translation.invalidate_last_change()
         if self.component:
             self.project = self.component.project
         if self.dictionary:

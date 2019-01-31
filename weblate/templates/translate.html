@@ -11,7 +11,9 @@
 
 {% block breadcrumbs %}
 <li><a href="{{ unit.translation.component.project.get_absolute_url }}">{{ unit.translation.component.project }}</a></li>
-<li><a href="{{ unit.translation.component.get_absolute_url }}">{{ unit.translation.component.name }}</a></li>
+<li><a href="{{ unit.translation.component.get_absolute_url }}">{{ unit.translation.component.name }}</a>
+{% indicate_alerts object %}
+</li>
 <li><a href="{{ unit.translation.get_absolute_url }}">{{ unit.translation.language }}</a></li>
 <li><a href="{{ unit.translation.get_translate_url }}">{% trans "translate" %}</a></li>
 {% endblock %}
@@ -32,15 +34,14 @@
 <a href="{% url 'zen' project=unit.translation.component.project.slug component=unit.translation.component.slug lang=unit.translation.language.code %}?{{ search_url }}" data-params="{{ search_url }}" title="{% trans "Edit in Zen mode" %}" class="btn btn-default pull-right flip"><i class="fa fa-arrows-alt"></i> {% trans "Zen" %}</a>
 {% endif %}
 
-{% include "show-lock.html" with object=unit.translation.component %}
-{% show_contributor_agreement unit.translation.component %}
+{% include "show-component-state.html" with object=unit.translation.component %}
 
 {% with unit.get_comments as comments and unit.nearby as nearby %}
 
 <div class="btn-group">
 <ul class="pagination unit-navi">
-<li><a id="button-first" href="{{ first_unit_url }}" title="{% trans "First" %}"><i class="fa fa-step-backward"></i></a></li>
-<li><a id="button-prev" href="{{ prev_unit_url }}" title="{% trans "Previous" %}"><i class="fa fa-backward"></i></a></li>
+<li><a id="button-first" href="{{ first_unit_url }}" title="{% trans "First" %}"><i class="fa {% if LANGUAGE_BIDI %}fa-step-forward{% else %}fa-step-backward{% endif %}"></i></a></li>
+<li><a id="button-prev" href="{{ prev_unit_url }}" title="{% trans "Previous" %}"><i class="fa {% if LANGUAGE_BIDI %}fa-forward{% else %}fa-backward{% endif %}"></i></a></li>
 <li>
 <a class="dropdown-toggle" data-toggle="dropdown" href="#" title="{% trans "Edit search parameters" %}" id="search-dropdown">
 <i class="fa fa-search" aria-hidden="true"></i>
@@ -67,7 +68,10 @@
 
 <div class="panel-group">
 
-<form action="{{ unit.translation.get_translate_url }}?{{ search_url }}" method="GET">
+<form action="{{ unit.translation.get_translate_url }}" method="GET">
+{% for key, value in search_items %}
+<input type="hidden" name="{{ key }}" value="{{ value }}" />
+{% endfor %}
 <div class="form-group">
 <label class="control-label" for="id-goto-number">{% trans "Jump to position" %}</label>
 <div class="controls">
@@ -80,8 +84,8 @@
 
 </div>
 </li>
-<li><a id="button-next" href="{{ next_unit_url }}" title="{% trans "Next" %}"><i class="fa fa-forward"></i></a></li>
-<li><a id="button-end" href="{{ last_unit_url }}" title="{% trans "Last" %}"><i class="fa fa-step-forward"></i></a></li>
+<li><a id="button-next" href="{{ next_unit_url }}" title="{% trans "Next" %}"><i class="fa {% if LANGUAGE_BIDI %}fa-backward{% else %}fa-forward{% endif %}"></i></a></li>
+<li><a id="button-end" href="{{ last_unit_url }}" title="{% trans "Last" %}"><i class="fa {% if LANGUAGE_BIDI %}fa-step-backward{% else %}fa-step-forward{% endif %}"></i></a></li>
 </ul>
 </div>
 
@@ -201,6 +205,8 @@
     title="{% trans "Please log in to save translations." %}"
     {% elif unit.approved %}
     title="{% trans "Only reviewers can change approved strings, please add a suggestion if you think the string should be changed." %}"
+    {% elif unit.translation.component.suggestion_voting %}
+    title="{% trans "This translation only accepts suggestions and these are approved by voting." %}"
     {% else %}
     title="{% trans "Insufficient privileges for saving translations." %}"
     {% endif %}
@@ -220,19 +226,6 @@
     ><i class="fa fa-comment"></i> {% trans "Suggest" %}</button>
     {% endif %}
     <button class="btn btn-info" type="submit" name="skip" tabindex="152"><i class="fa {% if LANGUAGE_BIDI %}fa-backward{% else %}fa-forward{% endif %}"></i> {% trans "Skip" %}</button>
-
-    {% if user_can_translate %}
-    <div class="pull-right flip hidden-xs">
-    {% trans "Commit message:" %}
-    <input type="text" name="commit_message" class="tooltip-control"
-        data-toggle="tooltip" data-placement="bottom"
-        placeholder="{% trans "Additional text to include" %}"
-        tabindex="152"
-        value="{{ unit.translation.commit_message }}"
-        title="{% trans "You can leave this empty in most cases, as Weblate generates basic commit messages automatically." %}"
-    />
-    </div>
-    {% endif %}
   </div>
 </div>
 </form>
@@ -314,6 +307,9 @@
 {% endif %}
 {% perm 'suggestion.delete' suggestion unit.translation as user_can_delete_suggestion %}
 {% if user_can_delete_suggestion %}
+{% if has_antispam %}
+<button type="submit" class="btn btn-danger" name="spam" value="{{ suggestion.id }}"><i class="fa fa-trash"></i> {% trans "Mark as spam" %}</button>
+{% endif %}
 <button type="submit" class="btn btn-danger" name="delete" value="{{ suggestion.id }}"><i class="fa fa-trash"></i> {% trans "Delete" %}</button>
 {% endif %}
 </div>
@@ -467,23 +463,30 @@
         <tr>
         <th>{% trans "Source" %}</th>
         <th>{% trans "Translation" %}</th>
-        <th></th>
         </tr>
         </thead>
         <tbody>
         {% include "glossary-embed.html" %}
         </tbody>
-{% if user_can_add_dictionary %}
-        <tfoot>
-        <tr class="form-inline">
-        <td>{{ addword_form.source }}</td>
-        <td>{{ addword_form.target }}</td>
-        <td>
-        <input type="submit" class="btn btn-default btn-xs" title="{% trans "Add word to glossary" %}" value="{% trans "Add" %}" />
-        <td>
-        </tfoot>
-{% endif %}
     </table>
+{% if user_can_add_dictionary %}
+    <table class="table table-condensed table-add-glossary">
+        <tfoot>
+        <tr>
+        <th>{% trans "Add word to glossary" %}</th>
+        <td>
+        <input type="submit" class="btn btn-default btn-xs pull-right flip" value="{% trans "Add" %}" />
+        </td>
+        </tr>
+        <tr class="form-inline">
+        <td colspan="2">{{ addword_form.source }}</td>
+        </tr>
+        <tr class="form-inline">
+        <td colspan="2">{{ addword_form.target }}</td>
+        </tr>
+        </tfoot>
+    </table>
+{% endif %}
 </div>
 </form>
 
@@ -584,7 +587,7 @@
 </div>
 </div>
 
-<a href="{% url 'js-translate' unit_id=unit.id %}" class="hidden" id="js-translate"></a>
+<a href="{% url 'js-translate' unit_id=unit.id service="__service__" %}" class="hidden" id="js-translate"></a>
 <a href="{% url 'js-mt-services' %}" class="hidden" id="js-mt-services"></a>
 
 {% endwith %}

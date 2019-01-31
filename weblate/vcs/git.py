@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -24,15 +24,11 @@ import email.utils
 import os
 import os.path
 
-from dateutil import parser
-
 from defusedxml import ElementTree
 
 from django.conf import settings
 from django.utils.functional import cached_property
 
-from weblate.trans.util import get_clean_env
-from weblate.vcs.ssh import get_wrapper_filename
 from weblate.vcs.base import Repository, RepositoryException
 from weblate.vcs.gpg import get_gpg_sign_key
 
@@ -48,9 +44,13 @@ class GitRepository(Repository):
     ]
     _cmd_update_remote = ['fetch', 'origin']
     _cmd_push = ['push', 'origin']
+    _cmd_list_changed_files = ['diff', '--name-status']
+
     name = 'Git'
     req_version = '1.6'
     default_branch = 'master'
+    ref_to_remote = '..{0}'
+    ref_from_remote = '{0}..'
 
     def is_valid(self):
         """Check whether this is a valid repository."""
@@ -88,7 +88,7 @@ class GitRepository(Repository):
     def set_config(self, path, value):
         """Set entry in local configuration."""
         self.execute(
-            ['config', path, value]
+            ['config', '--replace-all', path, value]
         )
 
     def set_committer(self, name, mail):
@@ -98,7 +98,7 @@ class GitRepository(Repository):
 
     def reset(self):
         """Reset working copy to match remote branch."""
-        self.execute(['reset', '--hard', 'origin/{0}'.format(self.branch)])
+        self.execute(['reset', '--hard', self.get_remote_branch_name()])
         self.clean_revision_cache()
 
     def rebase(self, abort=False):
@@ -106,7 +106,7 @@ class GitRepository(Repository):
         if abort:
             self.execute(['rebase', '--abort'])
         else:
-            self.execute(['rebase', 'origin/{0}'.format(self.branch)])
+            self.execute(['rebase', self.get_remote_branch_name()])
 
     def has_rev(self, rev):
         try:
@@ -115,7 +115,7 @@ class GitRepository(Repository):
         except RepositoryException:
             return False
 
-    def merge(self, abort=False):
+    def merge(self, abort=False, message=None):
         """Merge remote branch or reverts the merge."""
         tmp = 'weblate-merge-tmp'
         if abort:
@@ -131,7 +131,7 @@ class GitRepository(Repository):
             # to different merge order than expected and most GUI tools
             # then show confusing diff (not changes done by Weblate, but
             # changes merged into Weblate)
-            remote = 'origin/{}'.format(self.branch)
+            remote = self.get_remote_branch_name()
             # Create local branch for upstream
             self.execute(['branch', tmp, remote])
             # Checkout upstream branch
@@ -140,7 +140,7 @@ class GitRepository(Repository):
             cmd = [
                 'merge',
                 '--message',
-                "Merge branch '{}' into Weblate".format(remote),
+                message or "Merge branch '{}' into Weblate".format(remote),
             ]
             cmd.extend(self._get_gpg_sign())
             cmd.append(self.branch)
@@ -152,7 +152,8 @@ class GitRepository(Repository):
             self.execute(['merge', tmp])
 
         # Delete temporary branch
-        self.execute(['branch', '-D', tmp])
+        if self.has_branch(tmp):
+            self.execute(['branch', '-D', tmp])
 
     def needs_commit(self, filename=None):
         """Check whether repository needs commit."""
@@ -160,7 +161,8 @@ class GitRepository(Repository):
             cmd = ['status', '--porcelain']
         else:
             cmd = ['status', '--porcelain', '--', filename]
-        status = self.execute(cmd, needs_lock=False)
+        with self.lock:
+            status = self.execute(cmd)
         return status != ''
 
     def show(self, revision):
@@ -209,14 +211,11 @@ class GitRepository(Repository):
                     name, value = line.strip().split(':', 1)
                     value = value.strip()
                     name = name.lower()
-                    if 'date' in name:
-                        result[name] = parser.parse(value)
-                    else:
-                        result[name] = value
-                        if '@' in value:
-                            parsed = email.utils.parseaddr(value)
-                            result['{0}_name'.format(name)] = parsed[0]
-                            result['{0}_email'.format(name)] = parsed[1]
+                    result[name] = value
+                    if '@' in value:
+                        parsed = email.utils.parseaddr(value)
+                        result['{0}_name'.format(name)] = parsed[0]
+                        result['{0}_email'.format(name)] = parsed[1]
             else:
                 message.append(line.strip())
 
@@ -225,28 +224,12 @@ class GitRepository(Repository):
 
         return result
 
-    def _log_revisions(self, refspec):
+    def log_revisions(self, refspec):
         """Return revisin log for given refspec."""
         return self.execute(
-            ['log', '--oneline', refspec, '--'],
+            ['log', '--format=format:%H', refspec, '--'],
             needs_lock=False
-        )
-
-    def needs_merge(self):
-        """Check whether repository needs merge with upstream
-        (is missing some revisions).
-        """
-        return self._log_revisions(
-            '..origin/{0}'.format(self.branch)
-        ) != ''
-
-    def needs_push(self):
-        """Check whether repository needs push to upstream
-        (has additional revisions).
-        """
-        return self._log_revisions(
-            'origin/{0}..'.format(self.branch)
-        ) != ''
+        ).splitlines()
 
     @classmethod
     def _get_version(cls):
@@ -375,6 +358,10 @@ class GitRepository(Repository):
             needs_lock=False
         )
 
+    def cleanup(self):
+        """Remove not tracked files from the repository."""
+        self.execute(['clean', '-f'])
+
 
 class GitWithGerritRepository(GitRepository):
 
@@ -389,13 +376,7 @@ class GitWithGerritRepository(GitRepository):
         return cls._popen(['review', '--version'], err=True).split()[-1]
 
     def push(self):
-        try:
-            self.execute(['review', '--yes', self.branch])
-        except RepositoryException as error:
-            if error.retcode == 1:
-                # Nothing to push
-                return
-            raise
+        self.execute(['review', '--yes', self.branch])
 
 
 class SubversionRepository(GitRepository):
@@ -485,7 +466,7 @@ class SubversionRepository(GitRepository):
             args.insert(0, revision)
         cls._popen(['svn', 'clone'] + args)
 
-    def merge(self, abort=False):
+    def merge(self, abort=False, message=None):
         """Rebases. Git-svn does not support merge."""
         self.rebase(abort)
 
@@ -497,27 +478,6 @@ class SubversionRepository(GitRepository):
             self.execute(['rebase', '--abort'])
         else:
             self.execute(['svn', 'rebase'])
-
-    def needs_merge(self):
-        """Check whether repository needs merge with upstream
-        (is missing some revisions).
-        """
-        return self._log_revisions(
-            '..{0}'.format(self.get_remote_branch_name())
-        ) != ''
-
-    def needs_push(self):
-        """Check whether repository needs push to upstream
-        (has additional revisions).
-        """
-        return self._log_revisions(
-            '{0}..'.format(self.get_remote_branch_name())
-        ) != ''
-
-    def reset(self):
-        """Reset working copy to match remote branch."""
-        self.execute(['reset', '--hard', self.get_remote_branch_name()])
-        self.clean_revision_cache()
 
     @cached_property
     def last_remote_revision(self):
@@ -558,17 +518,16 @@ class GithubRepository(GitRepository):
             return False
         return super(GithubRepository, cls).is_supported()
 
-    @staticmethod
-    def _getenv():
+    @classmethod
+    def _getenv(cls):
         """Generate environment for process execution."""
-        env = {'GIT_SSH': get_wrapper_filename()}
-
+        env = super(cls, GithubRepository)._getenv()
         # Add path to config if it exists
         userconfig = os.path.expanduser('~/.config/hub')
         if os.path.exists(userconfig):
             env['HUB_CONFIG'] = userconfig
 
-        return get_clean_env(env)
+        return env
 
     def create_pull_request(self, origin_branch, fork_branch):
         """Create pull request to merge branch in forked repository into
@@ -579,7 +538,7 @@ class GithubRepository(GitRepository):
             '-f',
             '-h', '{0}:{1}'.format(settings.GITHUB_USERNAME, fork_branch),
             '-b', origin_branch,
-            '-m', 'Update from Weblate.',
+            '-m', settings.DEFAULT_PULL_MESSAGE,
         ]
         self.execute(cmd)
 

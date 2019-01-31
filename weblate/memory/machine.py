@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -21,7 +21,7 @@
 from __future__ import unicode_literals
 
 from weblate.lang.models import Language
-from weblate.memory.storage import TranslationMemory
+from weblate.memory.storage import TranslationMemory, get_category_name
 from weblate.machinery.base import MachineTranslation
 
 
@@ -38,22 +38,26 @@ class WeblateMemory(MachineTranslation):
         """Any language is supported."""
         return True
 
-    def format_unit_match(self, text, target, similarity, origin):
+    def format_unit_match(self, text, target, similarity, category, origin):
         """Format match to translation service result."""
         return (
             target,
             similarity,
             '{0} ({1})'.format(
                 self.name,
-                origin,
+                get_category_name(category, origin),
             ),
             text,
         )
 
-    def download_translations(self, source, language, text, unit, user):
+    def download_translations(self, source, language, text, unit, request):
         """Download list of possible translations from a service."""
-        memory = TranslationMemory()
-        return [
-            self.format_unit_match(*result)
-            for result in memory.lookup(source.code, language.code, text)
-        ]
+        memory = TranslationMemory.get_thread_instance()
+        memory.refresh()
+        results = memory.lookup(
+            source.code, language.code, text,
+            request.user,
+            unit.translation.component.project,
+            unit.translation.component.project.use_shared_tm,
+        )
+        return [self.format_unit_match(*result) for result in results]

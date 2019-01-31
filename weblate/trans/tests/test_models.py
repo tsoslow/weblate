@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -21,15 +21,13 @@
 """Test for translation models."""
 
 
-import shutil
 import os
+import shutil
 
 from django.core.management.color import no_style
 from django.db import connection
 from django.http.request import HttpRequest
 from django.test import TestCase, LiveServerTestCase
-from django.test.utils import override_settings
-from django.core.exceptions import ValidationError
 
 from weblate.auth.models import User, Group
 from weblate.checks.models import Check
@@ -89,6 +87,9 @@ class ProjectTest(RepoTestCase):
         project = component.project
         old_path = project.full_path
         self.assertTrue(os.path.exists(old_path))
+        self.assertTrue(os.path.exists(
+            component.translation_set.all()[0].get_filename()
+        ))
         project.slug = 'changed'
         project.save()
         new_path = project.full_path
@@ -101,6 +102,10 @@ class ProjectTest(RepoTestCase):
         self.assertFalse(
             Component.objects.filter(repo='weblate://test/test').exists()
         )
+        component = Component.objects.get(pk=component.pk)
+        self.assertTrue(os.path.exists(
+            component.translation_set.all()[0].get_filename()
+        ))
 
     def test_delete(self):
         project = self.create_project()
@@ -113,19 +118,6 @@ class ProjectTest(RepoTestCase):
         self.assertTrue(os.path.exists(project.full_path))
         Project.objects.all().delete()
         self.assertFalse(os.path.exists(project.full_path))
-
-    def test_wrong_path(self):
-        project = self.create_project()
-
-        with override_settings(DATA_DIR='/weblate-nonexisting:path'):
-            # Invalidate cache
-            project.invalidate_path_cache()
-
-            self.assertRaisesMessage(
-                ValidationError,
-                'Could not create project directory',
-                project.full_clean
-            )
 
     def test_acl(self):
         """Test for ACL handling."""
@@ -187,9 +179,8 @@ class TranslationTest(RepoTestCase):
         # Initial translation
         for unit in translation.unit_set.all():
             unit.translate(request, 'test2', STATE_TRANSLATED)
-        # Translation completed, commit forced
-        self.assertNotEqual(start_rev, component.repository.last_revision)
-        start_rev = component.repository.last_revision
+        # Translation completed, no commit forced
+        self.assertEqual(start_rev, component.repository.last_revision)
         # Translation from same author should not trigger commit
         for unit in translation.unit_set.all():
             unit.translate(request, 'test3', STATE_TRANSLATED)
@@ -309,32 +300,35 @@ class SourceTest(ModelTestCase):
         self.assertEqual(Check.objects.count(), 3)
         check = Check.objects.all()[0]
         unit = check.related_units[0]
+        self.assertEqual(self.component.stats.allchecks, 2)
         source = unit.source_info
         source.check_flags = 'ignore-{0}'.format(check.check)
         source.save()
         self.assertEqual(Check.objects.count(), 0)
+        self.assertEqual(
+            Component.objects.get(pk=self.component.pk).stats.allchecks,
+            0
+        )
 
 
 class UnitTest(ModelTestCase):
-    @override_settings(MT_WEBLATE_LIMIT=15)
     def test_more_like(self):
         unit = Unit.objects.all()[0]
         self.assertEqual(Unit.objects.more_like_this(unit).count(), 0)
 
-    @override_settings(MT_WEBLATE_LIMIT=0)
-    def test_more_like_timeout(self):
+    def test_newlines(self):
+        request = HttpRequest()
+        request.user = create_test_user()
         unit = Unit.objects.all()[0]
-        self.assertRaisesMessage(
-            Exception,
-            'Request for more like {0} timed out.'.format(unit.pk),
-            Unit.objects.more_like_this,
-            unit
-        )
-
-    @override_settings(MT_WEBLATE_LIMIT=-1)
-    def test_more_like_no_fork(self):
+        unit.translate(request, 'new\nstring', STATE_TRANSLATED)
+        self.assertEqual(unit.target, 'new\nstring')
+        # New object to clear all_flags cache
         unit = Unit.objects.all()[0]
-        self.assertEqual(Unit.objects.more_like_this(unit).count(), 0)
+        unit.flags = 'dos-eol'
+        unit.translate(request, 'new\nstring', STATE_TRANSLATED)
+        self.assertEqual(unit.target, 'new\r\nstring')
+        unit.translate(request, 'other\r\nstring', STATE_TRANSLATED)
+        self.assertEqual(unit.target, 'other\r\nstring')
 
 
 class WhiteboardMessageTest(ModelTestCase):

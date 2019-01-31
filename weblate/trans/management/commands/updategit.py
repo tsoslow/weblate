@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -20,10 +20,13 @@
 
 from weblate.trans.management.commands import WeblateComponentCommand
 
+from weblate.trans.tasks import perform_update
+
 
 class Command(WeblateComponentCommand):
     help = 'updates git repos'
+    needs_repo = True
 
     def handle(self, *args, **options):
         for component in self.get_components(*args, **options):
-            component.do_update()
+            perform_update.delay('Component', component.pk)

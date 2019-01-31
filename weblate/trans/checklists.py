@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -22,16 +22,16 @@
 class TranslationChecklist(list):
     """Simple list wrapper for translation checklist"""
 
-    def add_if(self, stats, name, label, level):
+    def add_if(self, stats, choices, name, level):
         """Add to list if there are matches"""
         if getattr(stats, name) > 0:
-            self.add(stats, name, label, level)
+            self.add(stats, choices, name, level)
 
-    def add(self, stats, name, label, level):
+    def add(self, stats, choices, name, level):
         """Add item to the list"""
         self.append((
             name,
-            label,
+            choices[name],
             getattr(stats, name),
             level,
             getattr(stats, '{}_words'.format(name))

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -37,24 +37,30 @@ class PlanAdmin(WeblateModelAdmin):
 class BillingAdmin(WeblateModelAdmin):
     list_display = (
         'list_projects',
+        'list_owners',
         'plan', 'state',
         'count_changes_1m', 'count_changes_1q', 'count_changes_1y',
         'unit_count',
         'display_projects', 'display_repositories', 'display_strings',
         'display_words', 'display_languages',
-        'in_limits', 'in_display_limits', 'last_invoice'
+        'in_limits', 'in_display_limits', 'paid', 'last_invoice',
     )
-    list_filter = ('plan', 'state')
+    list_filter = ('plan', 'state', 'paid', 'in_limits')
     search_fields = ('projects__name',)
+    filter_horizontal = ('projects', 'owners')
 
     def list_projects(self, obj):
         return ','.join(obj.projects.values_list('name', flat=True))
     list_projects.short_description = _('Projects')
 
+    def list_owners(self, obj):
+        return ','.join(obj.owners.values_list('full_name', flat=True))
+    list_owners.short_description = _('Owners')
+
 
 class InvoiceAdmin(WeblateModelAdmin):
     list_display = (
-        'billing', 'start', 'end', 'payment', 'currency', 'ref'
+        'billing', 'start', 'end', 'amount', 'currency', 'ref'
     )
     list_filter = ('currency', 'billing')
     search_fields = (

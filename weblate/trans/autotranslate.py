@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © 2012 - 2018 Michal Čihař <michal@cihar.com>
+# Copyright © 2012 - 2019 Michal Čihař <michal@cihar.com>
 #
 # This file is part of Weblate <https://weblate.org/>
 #
@@ -117,7 +117,7 @@ class AutoTranslate(object):
                     self.translation.language.code,
                     unit.get_source_plurals()[0],
                     unit,
-                    self.user
+                    self.request
                 )
 
                 for item in result:
