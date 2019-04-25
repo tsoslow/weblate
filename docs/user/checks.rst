@@ -273,7 +273,7 @@ Perl format
     `Perl sprintf <https://perldoc.perl.org/functions/sprintf.html>`_,
     `Perl Format Strings <https://www.gnu.org/software/gettext/manual/html_node/perl_002dformat.html>`_
 
-Javascript format
+JavaScript format
 *****************
 
 +------------------------+------------------------------------------------------------+
@@ -438,6 +438,66 @@ This usually means the resulting output will look different. In most cases this 
 not desired result from changing the translation, but occasionally it is.
 
 Checks that XML tags are replicated between both source and translation.
+
+
+.. _check-md-reflink:
+
+Markdown link references
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Markdown link references does not match source.
+
+.. seealso::
+
+   `Markdown links`_
+
+.. _check-md-link:
+
+Markdown links
+~~~~~~~~~~~~~~
+
+Markdown links do not match source.
+
+.. seealso::
+
+   `Markdown links`_
+
+
+.. _check-md-syntax:
+
+Markdown syntax
+~~~~~~~~~~~~~~~
+
+Markdown syntax does not match source
+
+.. seealso::
+   
+   `Markdown span elements`_
+
+.. _Markdown links: https://daringfireball.net/projects/markdown/syntax#link
+.. _Markdown span elements: https://daringfireball.net/projects/markdown/syntax#span
+
+
+.. _check-kashida:
+
+Kashida letter used
+~~~~~~~~~~~~~~~~~~~
+
+The decorative Kashida letters should not be used in translation. These are
+also known as Tatweel.
+
+.. seealso::
+
+   `Kashida on Wikipedia <https://en.wikipedia.org/wiki/Kashida>`_
+
+.. _check-url:
+
+URL
+~~~
+
+The translation does not contain an URL. This is triggered only in case the
+unit is marked as containing URL. In that case the translation has to be a
+valid URL.
 
 Source checks
 -------------

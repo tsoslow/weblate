@@ -242,18 +242,33 @@ Several operations in Weblate are rate limited. At most
 :setting:`RATELIMIT_ATTEMPTS` attempts are allowed within
 :setting:`RATELIMIT_WINDOW` seconds. The user is then blocked
 for :setting:`RATELIMIT_LOCKOUT`. There are also per scope variants of those
-settings, eg. `RATELIMIT_CONTACT_ATTEMPTS`, see scopes below.
+settings, eg. ``RATELIMIT_CONTACT_ATTEMPTS`` or
+``RATELIMIT_TRANSLATE_ATTEMPTS``, see table below for full list of available
+scopes.
 
 Following operations are subject to rate limiting:
 
-* Registration (`REGISTRATION` scope)
-* Sending message to admins (`MESSAGE` scope)
-* Password authentication on login (`LOGIN` scope)
-* Sitewide search (`SEARCH` scope)
++-----------------------------------+--------------------+------------------+------------------+----------------+
+| Name                              | Scope              | Allowed attempts | Ratelimit window | Lockout period |
++===================================+====================+==================+==================+================+
+| Registration                      | ``REGISTRATION``   |                5 |              300 |            600 |
++-----------------------------------+--------------------+------------------+------------------+----------------+
+| Sending message to admins         | ``MESSAGE``        |                5 |              300 |            600 |
++-----------------------------------+--------------------+------------------+------------------+----------------+
+| Password authentication on login  | ``LOGIN``          |                5 |              300 |            600 |
++-----------------------------------+--------------------+------------------+------------------+----------------+
+| Sitewide search                   | ``SEARCH``         |                6 |               60 |             60 |
++-----------------------------------+--------------------+------------------+------------------+----------------+
+| Translating                       | ``TRANSLATE``      |               30 |               60 |            600 |
++-----------------------------------+--------------------+------------------+------------------+----------------+
 
 Additionally if there are more than :setting:`AUTH_LOCK_ATTEMPTS` failed
 authentication attempts on one account, this account password authentication is
 disabled and it's not possible to login until user asks for password reset.
+
+.. seealso::
+
+   :ref:`user-rate`
 
 .. _rate-ip:
 
@@ -261,8 +276,8 @@ IP address for rate limiting
 ++++++++++++++++++++++++++++
 
 The rate limiting is based on client IP address. This is obtained from HTTP
-headers and you will have to change configuration in the event Weblate is running
-behind reverse proxy to work it properly.
+headers and you will have to change configuration in the event Weblate is
+running behind reverse proxy to work it properly.
 
 .. seealso::
 

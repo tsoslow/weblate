@@ -38,13 +38,16 @@ Alternatively you can use the search field to find a specific string or term.
 Suggestions
 -----------
 
-Anonymous users can only (if permitted) forward suggestions.
-Doing so is still available to logged in users, in cases where uncertainty about the translation arises,
-which will prompt another translator to review it.
-
 .. note::
 
-    Permissions might vary depending on your setup, the following describes the default behaviour of Weblate.
+    Actual permissions might vary depending on your Weblate configuration.
+
+Anonymous users can only (if permitted) forward suggestions.  Doing so is still
+available to logged in users, in cases where uncertainty about the translation
+arises, which will prompt another translator to review it.
+
+The suggestions are dialy scanned to remove duplicate ones or the one where
+suggestion matches current translation.
 
 Translating
 -----------
@@ -243,3 +246,16 @@ Useful in several situations like consolidating translation
 between different components (for example website and application) or when
 bootstrapping translation for a new component using existing translations
 (translation memory).
+
+.. _user-rate:
+
+Rate limiting
+-------------
+
+To avoid abuse of the interface, there is rate limiting applied to several
+operations like searching, sending contact form or translating. In case you are
+are hit by this, you are blocked for certain period until you can perform the
+operation again.
+
+The default limits are described in the administrative manual in
+:ref:`rate-limit`, but can be tweaked by configuration.

@@ -20,12 +20,15 @@
 
 from __future__ import unicode_literals
 
-import re
-
 from django.utils.translation import ugettext_lazy as _
 
 from weblate.checks.base import (
-    TargetCheck, TargetCheckWithFlag, CountingCheck
+    TargetCheck, TargetCheckParametrized, CountingCheck
+)
+
+KASHIDA_CHARS = (
+    '\u0640', '\uFCF2', '\uFCF3', '\uFCF4', '\uFE71', '\uFE77', '\uFE79',
+    '\uFE7B', '\uFE7D', '\uFE7F'
 )
 
 
@@ -169,7 +172,7 @@ class EndColonCheck(TargetCheck):
         ' :', ' : ',
         '&nbsp;:', '&nbsp;: ',
         '\u00A0:', '\u00A0: ',
-        '\u202F:' '\u202F: '
+        '\u202F:', '\u202F: '
     )
     severity = 'warning'
 
@@ -352,7 +355,7 @@ class ZeroWidthSpaceCheck(TargetCheck):
         return ('\u200b' in target) != ('\u200b' in source)
 
 
-class MaxLengthCheck(TargetCheckWithFlag):
+class MaxLengthCheck(TargetCheckParametrized):
     """Check for maximum length of translation."""
     check_id = 'max-length'
     name = _('Maximum length of translation')
@@ -360,17 +363,9 @@ class MaxLengthCheck(TargetCheckWithFlag):
     severity = 'danger'
     default_disabled = True
 
-    FLAGS_PAIR_RE = re.compile(r'\b([-\w]+):(\w+)\b')
-
-    def check_target_unit_with_flag(self, sources, targets, unit):
-        check_pair = set(self.FLAGS_PAIR_RE.findall('\n'.join(unit.all_flags)))
-        if check_pair:
-            check_value = max(
-                {(x) for x in check_pair if x[0] == self.check_id},
-                key=lambda v: int(v[1])
-            )[1]
-            return len(targets[0]) > int(check_value)
-        return False
+    def check_target_params(self, sources, targets, unit, values):
+        max_length = max((int(value) for value in values))
+        return any((len(target) > max_length for target in targets))
 
 
 class EndSemicolonCheck(TargetCheck):
@@ -385,3 +380,13 @@ class EndSemicolonCheck(TargetCheck):
             # Complement to question mark check
             return False
         return self.check_chars(source, target, -1, [';'])
+
+
+class KashidaCheck(TargetCheck):
+    check_id = 'kashida'
+    name = _('Kashida used')
+    description = _('The decorative kashida letters should not be used')
+    severity = 'warning'
+
+    def check_single(self, source, target, unit):
+        return any((x in target for x in KASHIDA_CHARS))

@@ -18,7 +18,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Test for automatic translation"""
+"""Test for alerts"""
+
+from django.test.utils import override_settings
 
 from weblate.trans.tests.test_views import ViewTestCase
 
@@ -34,12 +36,12 @@ class AlertTest(ViewTestCase):
         self.assertEqual(self.component.alert_set.count(), 3)
         alert = self.component.alert_set.get(name='DuplicateLanguage')
         self.assertEqual(
-            alert.details['occurences'][0]['language_code'],
+            alert.details['occurrences'][0]['language_code'],
             'cs',
         )
         alert = self.component.alert_set.get(name='DuplicateString')
         self.assertEqual(
-            alert.details['occurences'][0]['source'],
+            alert.details['occurrences'][0]['source'],
             'Thank you for using Weblate.'
         )
         alert = self.component.alert_set.get(name='MissingLicense')
@@ -47,3 +49,54 @@ class AlertTest(ViewTestCase):
     def test_view(self):
         response = self.client.get(self.component.get_absolute_url())
         self.assertContains(response, 'Duplicated translation')
+
+    def test_license(self):
+        def has_license_alert(component):
+            return component.alert_set.filter(name='MissingLicense').exists()
+
+        # No license and public project
+        component = self.component
+        component.update_alerts()
+        self.assertTrue(has_license_alert(component))
+
+        # Private project
+        component.project.access_control = component.project.ACCESS_PRIVATE
+        component.update_alerts()
+        self.assertFalse(has_license_alert(component))
+
+        # Public, but login required
+        component.project.access_control = component.project.ACCESS_PUBLIC
+        with override_settings(LOGIN_REQUIRED_URLS=['some']):
+            component.update_alerts()
+            self.assertFalse(has_license_alert(component))
+
+        # Set license
+        component.license = 'license'
+        component.update_alerts()
+        self.assertFalse(has_license_alert(component))
+
+    def test_monolingual(self):
+        component = self.component
+        component.update_alerts()
+        self.assertFalse(
+            component.alert_set.filter(name='MonolingualTranslation').exists()
+        )
+
+
+class MonolingualAlertTest(ViewTestCase):
+    def create_component(self):
+        return self.create_po_mono()
+
+    def test_monolingual(self):
+        def has_monolingual_alert(component):
+            return component.alert_set.filter(
+                name='MonolingualTranslation'
+            ).exists()
+
+        component = self.component
+        component.update_alerts()
+        self.assertFalse(has_monolingual_alert(component))
+
+        self.component.template = ''
+        self.component.save()
+        self.assertTrue(has_monolingual_alert(component))

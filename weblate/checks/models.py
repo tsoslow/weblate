@@ -20,7 +20,9 @@
 
 from __future__ import unicode_literals
 
-from django.db import models
+from appconf import AppConf
+
+from django.db import models, transaction, IntegrityError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.encoding import python_2_unicode_compatible
@@ -31,10 +33,99 @@ from weblate.utils.decorators import disable_for_loaddata
 from weblate.utils.unitdata import UnitData
 
 
+class WeblateChecksConf(AppConf):
+    # List of quality checks
+    CHECK_LIST = (
+        'weblate.checks.same.SameCheck',
+        'weblate.checks.chars.BeginNewlineCheck',
+        'weblate.checks.chars.EndNewlineCheck',
+        'weblate.checks.chars.BeginSpaceCheck',
+        'weblate.checks.chars.EndSpaceCheck',
+        'weblate.checks.chars.EndStopCheck',
+        'weblate.checks.chars.EndColonCheck',
+        'weblate.checks.chars.EndQuestionCheck',
+        'weblate.checks.chars.EndExclamationCheck',
+        'weblate.checks.chars.EndEllipsisCheck',
+        'weblate.checks.chars.EndSemicolonCheck',
+        'weblate.checks.chars.MaxLengthCheck',
+        'weblate.checks.chars.KashidaCheck',
+        'weblate.checks.format.PythonFormatCheck',
+        'weblate.checks.format.PythonBraceFormatCheck',
+        'weblate.checks.format.PHPFormatCheck',
+        'weblate.checks.format.CFormatCheck',
+        'weblate.checks.format.PerlFormatCheck',
+        'weblate.checks.format.JavaScriptFormatCheck',
+        'weblate.checks.format.CSharpFormatCheck',
+        'weblate.checks.format.JavaFormatCheck',
+        'weblate.checks.format.JavaMessageFormatCheck',
+        'weblate.checks.angularjs.AngularJSInterpolationCheck',
+        'weblate.checks.consistency.PluralsCheck',
+        'weblate.checks.consistency.SamePluralsCheck',
+        'weblate.checks.consistency.ConsistencyCheck',
+        'weblate.checks.consistency.TranslatedCheck',
+        'weblate.checks.chars.NewlineCountingCheck',
+        'weblate.checks.markup.BBCodeCheck',
+        'weblate.checks.chars.ZeroWidthSpaceCheck',
+        'weblate.checks.markup.XMLValidityCheck',
+        'weblate.checks.markup.XMLTagsCheck',
+        'weblate.checks.markup.MarkdownRefLinkCheck',
+        'weblate.checks.markup.MarkdownLinkCheck',
+        'weblate.checks.markup.MarkdownSyntaxCheck',
+        'weblate.checks.markup.URLCheck',
+        'weblate.checks.source.OptionalPluralCheck',
+        'weblate.checks.source.EllipsisCheck',
+        'weblate.checks.source.MultipleFailingCheck',
+    )
+
+    class Meta(object):
+        prefix = ''
+
+
+class CheckManager(models.Manager):
+    # pylint: disable=no-init
+
+    def copy(self, project):
+        """Copy checks to new project
+
+        This is used on moving component to other project and ensures nothing
+        is lost. We don't actually look where the check belongs as it
+        would make the operation really expensive and it should be done in the
+        cleanup cron job.
+        """
+        checks = []
+        for check in self.all():
+            checks.append(Check(
+                project=project,
+                check=check.check,
+                ignore=check.ignore,
+                content_hash=check.content_hash,
+            ))
+        self.bulk_create(checks)
+
+    def bulk_create_ignore(self, objs):
+        """Wrapper to bulk_create to ignore existing entries.
+
+        Once we require Django 2.2 this can be replaced with
+        bulk_create(ignore_conflicts=True).
+        """
+        try:
+            with transaction.atomic():
+                self.bulk_create(objs)
+        except IntegrityError:
+            for obj in objs:
+                try:
+                    with transaction.atomic():
+                        obj.save()
+                except IntegrityError:
+                    continue
+
+
 @python_2_unicode_compatible
 class Check(UnitData):
     check = models.CharField(max_length=50, choices=CHECKS.get_choices())
     ignore = models.BooleanField(db_index=True, default=False)
+
+    objects = CheckManager()
 
     @cached_property
     def check_obj(self):
@@ -59,6 +150,11 @@ class Check(UnitData):
     def get_description(self):
         if self.check_obj:
             return self.check_obj.description
+        return self.check
+
+    def get_name(self):
+        if self.check_obj:
+            return self.check_obj.name
         return self.check
 
     def get_severity(self):

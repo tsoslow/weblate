@@ -103,6 +103,16 @@ class Command(BaseCommand):
         finally:
             options['json-file'].close()
 
+        allfields = set([
+            field.name
+            for field in Component._meta.get_fields()
+            if field.editable and not field.is_relation
+        ])
+
+        # Handle dumps from API
+        if 'results' in data:
+            data = data['results']
+
         for item in data:
             if ('filemask' not in item or
                     'name' not in item):
@@ -118,11 +128,9 @@ class Command(BaseCommand):
                     )
                 item['repo'] = main_component.get_repo_link_url()
 
-            item['project'] = project
-
             try:
                 component = Component.objects.get(
-                    slug=item['slug'], project=item['project']
+                    slug=item['slug'], project=project
                 )
                 self.stderr.write(
                     'Component {0} already exists'.format(component)
@@ -131,7 +139,7 @@ class Command(BaseCommand):
                     continue
                 if options['update']:
                     for key in item:
-                        if key in ('project', 'slug'):
+                        if key not in allfields or key == 'slug':
                             continue
                         setattr(component, key, item[key])
                     component.save()
@@ -141,7 +149,8 @@ class Command(BaseCommand):
                 )
 
             except Component.DoesNotExist:
-                component = Component(**item)
+                params = {key: item[key] for key in allfields if key in item}
+                component = Component(project=project, **params)
                 try:
                     component.full_clean()
                 except ValidationError as error:

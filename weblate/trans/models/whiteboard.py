@@ -22,16 +22,22 @@
 
 from django.db import models
 from django.db.models import Q
+from django.utils.html import urlize
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy, ugettext as _
+from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
 from django.core.exceptions import ValidationError
+
 from weblate.lang.models import Language
 
 
 class WhiteboardManager(models.Manager):
     def context_filter(self, project=None, component=None, language=None):
         """Filter whiteboard messages by context."""
-        base = self.all()
+        base = self.filter(
+            Q(expiry__isnull=True) | Q(expiry__gte=timezone.now())
+        )
 
         if language and project is None and component is None:
             return base.filter(
@@ -69,7 +75,7 @@ class WhiteboardMessage(models.Model):
     message_html = models.BooleanField(
         verbose_name=ugettext_lazy('Render as HTML'),
         help_text=ugettext_lazy(
-            'When disabled, URLs will be converted to links and '
+            'When turned off, URLs will be converted to links and '
             'any markup will be escaped.'
         ),
         blank=True,
@@ -108,9 +114,19 @@ class WhiteboardMessage(models.Model):
             ('warning', ugettext_lazy('Warning (yellow)')),
             ('danger', ugettext_lazy('Danger (red)')),
             ('success', ugettext_lazy('Success (green)')),
-            ('primary', ugettext_lazy('Primary (dark blue)')),
         ),
         default='info',
+    )
+    expiry = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name=ugettext_lazy('Expiry date'),
+        help_text=ugettext_lazy(
+            'The message will be not shown after this date. '
+            'Use it to announce string freeze and translation '
+            'deadline for next release.'
+        ),
     )
 
     objects = WhiteboardManager()
@@ -131,3 +147,21 @@ class WhiteboardMessage(models.Model):
             )
         if not self.project and self.component:
             self.project = self.component.project
+
+    def save(self, *args, **kwargs):
+        is_new = (not self.id)
+        super(WhiteboardMessage, self).save(*args, **kwargs)
+        if is_new:
+            from weblate.trans.models import Change
+            Change.objects.create(
+                action=Change.ACTION_MESSAGE,
+                project=self.project,
+                component=self.component,
+                whiteboard=self,
+                target=self.message
+            )
+
+    def render(self):
+        if self.message_html:
+            return mark_safe(self.message)
+        return mark_safe(urlize(self.message, autoescape=True))

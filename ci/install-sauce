@@ -15,7 +15,14 @@ $SC_TEMP/*/bin/sc \
     -f ~/.sauce-ready \
     -l ~/.sauce-log &
 
-echo $! > ~/.sauce-pid
+PID=$!
+
+if [ $? -ne 0 ] ; then 
+    cat ~/.sauce-log
+    exit 1
+fi
+
+echo $PID > ~/.sauce-pid
 
 echo "Waiting for Sauce Connect readyfile"
 while [ ! -f ~/.sauce-ready ]; do
